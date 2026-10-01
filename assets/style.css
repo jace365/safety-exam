@@ -322,3 +322,10 @@ button.playing{background:var(--black)!important;color:var(--yellow)!important;b
 .tts-bar button:hover{background:#ffd633}
 @keyframes ttsPulse{50%{opacity:.25}}
 @media (prefers-reduced-motion:reduce){.tts-dot{animation:none}}
+
+/* 반복 듣기·일시정지 */
+.tts-bar #ttsPause,.tts-bar .rep-btn{background:transparent;color:var(--yellow);border:2px solid var(--yellow)}
+.tts-bar #ttsPause.on{background:var(--yellow);color:var(--black)}
+.tts-bar.paused .tts-dot{animation:none;opacity:.4}
+.rep-btn.on{border-color:var(--yellow);box-shadow:inset 0 -3px 0 var(--yellow)}
+@media (max-width:600px){.tts-bar{gap:6px;max-width:calc(100vw - 16px)}.tts-bar button{padding:2px 8px}.tts-lbl{max-width:38vw}}

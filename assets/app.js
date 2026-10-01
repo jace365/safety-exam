@@ -227,6 +227,7 @@
       (ui.mode === 'full' ? '<label class="chk"><input type="checkbox" id="fh"' + (ui.hide ? ' checked' : '') + '> 정답 가리기</label>' : '') +
       '<button class="sm" id="playAll" title="지금 표시된 문제를 문제→정답 순서로 이어 듣습니다">▶ 전체 듣기</button>' +
       '<button class="sm" id="playBM" title="이 화면에서 북마크한 문제만 이어 듣습니다">★ 북마크만 듣기</button>' +
+      '<button class="sm rep-btn" data-rep title="한 문제를 몇 번 반복해서 읽을지 정합니다(누르면 1→3→5→10회)">' + repLabel() + '</button>' +
       '<span class="meta" id="fc"></span></div>' +
       '<div class="wrap"><table class="tbl list' + (ui.mode === 'full' && ui.hide ? ' hide' : '') + '" id="tb"><thead><tr><th>No</th><th>과목</th><th>문제</th><th>' + (ui.mode === 'blank' ? '괄호 넣기' : '정답') + '</th></tr></thead><tbody id="tbody"></tbody></table></div>';
 
@@ -454,6 +455,8 @@
       '<details class="set" open><summary>🔊 음성 읽기 속도</summary>' +
       '<div class="field"><label for="rateSel">문제·정답을 읽어줄 때의 속도</label>' +
       '<select id="rateSel">' + RATES.map(function (r) { return '<option value="' + r + '"' + (r === (s.rate || 1) ? ' selected' : '') + '>' + r + '배속</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="repSel">반복 듣기(한 문제를 이어서 읽는 횟수)</label>' +
+      '<select id="repSel">' + REPEATS.map(function (n) { return '<option value="' + n + '"' + (n === repeatCount() ? ' selected' : '') + '>' + (n === 1 ? '1회(반복 안 함)' : n + '회 반복') + '</option>'; }).join('') + '</select></div>' +
       '<div class="field"><label for="voiceSel">목소리</label><select id="voiceSel"></select></div>' +
       '<div class="row"><button class="sm" id="voiceTest">🔊 들어 보기</button><span class="note">"방호장치 4가지, 2~3m, 1:29:300"을 "네 가지, 2에서 3 미터, 1 대 29 대 300"처럼 읽습니다.</span></div>' +
       '<p class="note">필답형·작업형·퀴즈·북마크·화면 위 고정 보기 창의 🔊 버튼과 전체 듣기에 모두 적용됩니다. 고정 보기 창의 속도 버튼(예: 1x)을 눌러도 바뀝니다. 목소리 목록은 기기·브라우저마다 다르며, Edge의 "Natural", 크롬의 "Google 한국의" 음성이 가장 자연스럽습니다.</p></details>' +
@@ -466,6 +469,7 @@
     document.getElementById('gt').value = genState.type;
     document.getElementById('rateSel').addEventListener('change', function (e) { setSpeechRate(parseFloat(e.target.value)); toast('음성 속도를 ' + e.target.value + '배속으로 저장했습니다.'); });
     fillVoiceSel();
+    document.getElementById('repSel').addEventListener('change', function (e) { setRepeat(parseInt(e.target.value, 10)); toast(repeatCount() > 1 ? '한 문제를 ' + repeatCount() + '번 반복해서 읽습니다.' : '반복 듣기를 껐습니다.'); });
     document.getElementById('voiceSel').addEventListener('change', function (e) { store.settings.voice = e.target.value; save(); toast(e.target.value ? '목소리를 저장했습니다.' : '목소리를 자동 선택으로 바꿨습니다.'); });
     document.getElementById('voiceTest').addEventListener('click', function (e) {
       var q = { id: '_test', q: '크레인 방호장치 4가지를 쓰시오.', a: '작업발판 폭 40cm 이상, 난간 간격 2~3m, 재해 비율 1:29:300' };
@@ -548,11 +552,13 @@
   function norm(s) { return String(s).toLowerCase().replace(/[\s·・,.\-()\[\]「」'"“”‘’~∙:;]/g, ''); }
 
   /* 퀴즈 레벨 : 기본 100문항을 원래 순서대로 20개씩 5레벨로 나눈다 */
-  var LEVEL_SIZE = 20, LEVEL_COUNT = 5;
+  var LEVEL_SIZE = 20;
+  /* 문항이 늘면 레벨이 자동으로 늘어난다. 마지막 남는 문항이 10개 미만이면 마지막 레벨에 합친다 */
+  function levelCount(type) { var n = QDATA[type].length; return Math.max(1, n % LEVEL_SIZE >= LEVEL_SIZE / 2 ? Math.ceil(n / LEVEL_SIZE) : Math.floor(n / LEVEL_SIZE)); }
   function baseLevels(type) {
     var base = QDATA[type], out = [];
-    for (var i = 0; i < LEVEL_COUNT; i++) {
-      out.push(base.slice(i * LEVEL_SIZE, (i + 1) * LEVEL_SIZE).map(function (q) { return q.id; }));
+    for (var i = 0, lc = levelCount(type); i < lc; i++) {
+      out.push(base.slice(i * LEVEL_SIZE, i === lc - 1 ? base.length : (i + 1) * LEVEL_SIZE).map(function (q) { return q.id; }));
     }
     return out;
   }
@@ -635,7 +641,7 @@
 
   function levelBtnsHTML(type, curLv) {
     var html = '';
-    for (var n = 1; n <= LEVEL_COUNT; n++) {
+    for (var n = 1; n <= levelCount(type); n++) {
       var unlocked = levelUnlocked(type, n), complete = levelComplete(type, n);
       var cls = (n === curLv ? 'on' : '') + (unlocked ? '' : ' locked') + (complete ? ' done' : '');
       html += '<button data-lv="' + n + '" class="' + cls + '"' + (unlocked ? '' : ' aria-disabled="true"') + '>' +
@@ -783,7 +789,7 @@
           } else {
             var lvNow = ui.levelByType[ui.type];
             if (lvNow !== 'bonus' && !wasSolved && levelComplete(ui.type, lvNow)) {
-              toast(lvNow < LEVEL_COUNT ? (lvNow + '레벨을 모두 맞혔습니다! ' + (lvNow + 1) + '레벨이 열렸습니다.') : '모든 레벨을 완료했습니다!');
+              toast(lvNow < levelCount(ui.type) ? (lvNow + '레벨을 모두 맞혔습니다! ' + (lvNow + 1) + '레벨이 열렸습니다.') : '모든 레벨을 완료했습니다!');
             }
             drawLevels();
           }
@@ -843,6 +849,7 @@
       '<option value="practical"' + (ui.type === 'practical' ? ' selected' : '') + '>작업형</option>' +
       '<option value="mock"' + (ui.type === 'mock' ? ' selected' : '') + '>모의고사</option></select>' +
       '<button class="sm" id="bmPlayAll" title="지금 표시된 북마크를 문제→정답 순서로 이어 듣습니다">▶ 전체 듣기</button>' +
+      '<button class="sm rep-btn" data-rep title="한 문제를 몇 번 반복해서 읽을지 정합니다(누르면 1→3→5→10회)">' + repLabel() + '</button>' +
       '<span class="meta" id="bc"></span></div>' +
       '<div class="wrap"><table class="tbl list" id="tb"><thead><tr><th>No</th><th>유형</th><th>문제</th><th>정답 · 관리</th></tr></thead><tbody id="tbody"></tbody></table></div>';
 
@@ -902,6 +909,7 @@
       '<button id="fpAuto" aria-label="전체 듣기" title="전체 듣기(문제→정답 이어 듣기)">▶</button>' +
       '<button id="fpSpk" aria-label="한 문제만 듣기" title="한 문제만 듣기">🔊</button>' +
       '<button id="fpRate" aria-label="속도" title="읽는 속도(누르면 바뀝니다)">1x</button>' +
+      '<button class="rep-btn" data-rep aria-label="반복 횟수" title="반복 횟수(누르면 1→3→5→10회)">' + repLabel(true) + '</button>' +
       '<button id="fpPrev" aria-label="이전" title="이전 문제">⏮</button><button id="fpNext" aria-label="다음" title="다음 문제">⏭</button>' +
       '<button id="fpClose" aria-label="닫기" title="닫기">✕</button></div></div>' +
       '<div class="fp-body" id="fpBody"></div><div class="fp-resize" id="fpResize" aria-hidden="true"></div>';
@@ -1146,6 +1154,25 @@
     var i = RATES.indexOf(speechRate());
     setSpeechRate(RATES[(i + 1) % RATES.length]);
   }
+  /* 반복 듣기 : 한 문제(문제→정답)를 1·3·5·10회 이어서 읽는다. 전체 듣기에서는 문제마다 정한 횟수만큼 반복한 뒤 다음 문제로 넘어간다.
+     설정은 store.settings.repeat에 저장되고, 목록·북마크 머리글, 고정 보기 창, 읽는 중 막대, 문제생성 설정의 🔁 버튼이 모두 같은 값을 쓴다. */
+  var REPEATS = [1, 3, 5, 10];
+  function repeatCount() { var n = store.settings.repeat; return REPEATS.indexOf(n) >= 0 ? n : 1; }
+  function repLabel(short) { var n = repeatCount(); return short ? '🔁' + n : (n > 1 ? '🔁 ' + n + '회 반복' : '🔁 반복 끔'); }
+  function updateRepUI() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-rep]'), function (b) {
+      b.textContent = repLabel(!!b.closest('.float-panel')); b.classList.toggle('on', repeatCount() > 1);
+    });
+    var sel = document.getElementById('repSel'); if (sel) sel.value = String(repeatCount());
+    if (ttsLabel) ttsLabel();
+  }
+  function setRepeat(n) { store.settings.repeat = n; save(); updateRepUI(); }
+  function cycleRepeat() {
+    var i = REPEATS.indexOf(repeatCount());
+    setRepeat(REPEATS[(i + 1) % REPEATS.length]);
+    toast(repeatCount() > 1 ? '한 문제를 ' + repeatCount() + '번 반복해서 읽습니다.' : '반복 듣기를 껐습니다.');
+  }
+  document.addEventListener('click', function (e) { if (e.target.closest('[data-rep]')) { e.preventDefault(); cycleRepeat(); } });
   /* 읽는 내용 하이라이트
      - 문제·정답이 보이는 곳(목록 행, 퀴즈 카드, 플로팅 창, 메인 핵심 암기 카드)을 모두 찾아
        읽는 동안 그 영역에 .speaking(노란 테두리), 지금 읽는 문제 문장 또는 정답의 한 줄에 .say(노란 배경),
@@ -1222,10 +1249,29 @@
   /* 멈춤: 누른 🔊 버튼이 ⏹ 멈춤으로 바뀌고, 읽는 동안 화면 아래에 멈춤 막대가 뜬다(Esc 키도 멈춤). */
   var ttsBar = document.createElement('div');
   ttsBar.id = 'ttsBar'; ttsBar.className = 'tts-bar'; ttsBar.hidden = true; ttsBar.setAttribute('role', 'status');
-  ttsBar.innerHTML = '<span class="tts-dot" aria-hidden="true"></span><span class="tts-lbl">읽는 중</span><button type="button" id="ttsStop">⏹ 멈춤</button>';
+  ttsBar.innerHTML = '<span class="tts-dot" aria-hidden="true"></span><span class="tts-lbl">읽는 중</span>' +
+    '<button type="button" id="ttsPause" title="잠시 멈춤(같은 줄부터 이어 읽기)">⏸ 일시정지</button>' +
+    '<button type="button" class="rep-btn" data-rep title="반복 횟수(누르면 1→3→5→10회)">' + '🔁' + '</button>' +
+    '<button type="button" id="ttsStop" title="듣기 종료(Esc)">⏹ 멈춤</button>';
   document.body.appendChild(ttsBar);
   ttsBar.querySelector('#ttsStop').addEventListener('click', function () { stopSpeak(); toast('듣기를 멈췄습니다.'); });
+  ttsBar.querySelector('#ttsPause').addEventListener('click', function () { if (ttsPaused) resumeSpeak(); else pauseSpeak(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ttsTok) stopSpeak(); });
+  /* 일시정지 : 기기마다 speechSynthesis.pause()가 불안정(특히 안드로이드)하므로 직접 구현한다.
+     지금 읽던 줄 위치를 기억하고 음성을 취소했다가, 계속을 누르면 그 줄부터 다시 읽는다(반복 회차도 유지). */
+  var ttsPaused = false, ttsResume = null, ttsLabel = null;
+  function setPauseUI() {
+    var b = ttsBar.querySelector('#ttsPause');
+    b.textContent = ttsPaused ? '▶ 계속' : '⏸ 일시정지'; b.classList.toggle('on', ttsPaused);
+    ttsBar.classList.toggle('paused', ttsPaused);
+  }
+  function pauseSpeak() {
+    if (!ttsTok || ttsPaused || !ttsResume) return;
+    ttsPaused = true; ttsTok = { paused: true }; clearTTSTimers();
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    setPauseUI(); if (ttsLabel) ttsLabel();
+  }
+  function resumeSpeak() { if (ttsPaused && ttsResume) ttsResume(); }
   function markPlaying(btn) {
     if (!btn || btn.classList.contains('playing')) return;
     btn.setAttribute('data-orig', btn.innerHTML);
@@ -1242,29 +1288,49 @@
     if (!ttsOn) { toast('이 브라우저는 음성 읽기를 지원하지 않습니다.'); if (onDone) onDone(); return; }
     try { window.speechSynthesis.cancel(); } catch (e) {}
     clearTTSTimers(); clearSay(); endTTSUI();
-    var tok = {}; ttsTok = tok;
-    markPlaying(btn); ttsBar.hidden = false;
-    ttsBar.querySelector('.tts-lbl').textContent = floatState.auto ? '전체 듣기 중 · ' + (floatState.i + 1) + '/' + floatState.ids.length : '읽는 중';
-    var boxes = boxesFor(q, ctx), segs = segmentsFor(q, which, boxes), i = 0;
+    var tok = {}; ttsTok = tok; ttsPaused = false;
+    markPlaying(btn); ttsBar.hidden = false; setPauseUI(); updateRepUI();
+    var boxes = boxesFor(q, ctx), segs = segmentsFor(q, which, boxes), i = 0, cur = 0, round = 1;
+    ttsLabel = function () {
+      var t = floatState.auto ? '전체 듣기 중 · ' + (floatState.i + 1) + '/' + floatState.ids.length : '읽는 중';
+      if (repeatCount() > 1) t += ' · 반복 ' + Math.min(round, repeatCount()) + '/' + repeatCount();
+      ttsBar.querySelector('.tts-lbl').textContent = (ttsPaused ? '일시정지 · ' : '') + t;
+    };
+    ttsLabel();
     boxes.forEach(function (b) { b.classList.add('speaking'); });
     function next() {
       if (ttsTok !== tok) return;
       boxes.forEach(function (b) { Array.prototype.forEach.call(b.querySelectorAll('.say'), function (el) { el.classList.remove('say'); el.classList.add('said'); }); });
       if (i >= segs.length) {
-        later(function () { if (ttsTok === tok) { clearSay(); endTTSUI(); ttsTok = null; } }, 500);
+        if (round < repeatCount()) { // 반복 : 잠깐 쉬었다가 처음 줄부터 다시
+          round++; i = 0; ttsLabel();
+          later(function () {
+            if (ttsTok !== tok) return;
+            Array.prototype.forEach.call(document.querySelectorAll('.said'), function (el) { el.classList.remove('said'); });
+            next();
+          }, 700);
+          return;
+        }
+        ttsResume = null;
+        later(function () { if (ttsTok === tok) { clearSay(); endTTSUI(); ttsTok = null; ttsLabel = null; } }, 500);
         if (onDone) onDone(); return;
       }
+      cur = i;
       var sg = segs[i++];
       sg.els.forEach(function (el) {
-        el.classList.add('say');
+        el.classList.remove('said'); el.classList.add('say');
         if (el.closest('.float-panel')) el.scrollIntoView({ block: 'nearest' }); // 플로팅 창 안에서 읽는 줄 따라가기
       });
       speakOne(sg.text, tok, next);
     }
+    ttsResume = function () { // 일시정지했던 줄부터 다시 읽는다
+      tok = {}; ttsTok = tok; ttsPaused = false; i = cur;
+      setPauseUI(); ttsLabel(); next();
+    };
     next();
   }
   function stopSpeak() {
-    ttsTok = null; clearTTSTimers();
+    ttsTok = null; ttsPaused = false; ttsResume = null; ttsLabel = null; clearTTSTimers();
     if (ttsOn) { try { window.speechSynthesis.cancel(); } catch (e) {} }
     clearSay(); endTTSUI();
     if (floatState.auto) { floatState.auto = false; updateFpAuto(); }
