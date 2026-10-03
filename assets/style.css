@@ -213,6 +213,9 @@ button,a,select{-webkit-tap-highlight-color:transparent}
 .bmbtn{background:#fff;border:2px solid var(--ink);border-radius:2px;padding:2px 12px;min-height:32px;font-size:13px;cursor:pointer}
 .bmbtn.on{background:var(--yellow-soft);border-color:var(--yellow)}
 .mk .bmbtn{min-height:36px;padding:2px 12px;font-size:16px}
+.wrbtn{background:#fff;border:2px solid var(--ink);border-radius:2px;padding:2px 12px;min-height:32px;font-size:13px;cursor:pointer;font-weight:700}
+.wrbtn.on{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+.mk .wrbtn{min-height:36px;padding:2px 10px;font-size:15px}
 
 /* ───────── 책갈피 바로가기(FAB) ───────── */
 .bm-fab{position:fixed;right:18px;bottom:24px;z-index:45;width:52px;height:52px;border-radius:50%;

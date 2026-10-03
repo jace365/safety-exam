@@ -54,6 +54,8 @@
   }
   function subjOk(q, subj) {
     if (!subj) return true;
+    if (subj === 'mock:all') return !!q.mock;
+    if (subj === 'base') return !q.mock;
     if (subj.indexOf('mock:') === 0) return String(q.mock) === subj.slice(5);
     return q.subject === subj;
   }
@@ -79,8 +81,23 @@
     return '<button class="bmbtn' + (on ? ' on' : '') + '" data-bm="' + id + '" aria-label="책갈피" title="책갈피">' +
       (on ? '★' : '☆') + (withLabel ? ' 책갈피' : '') + '</button>';
   }
+  /* 오답노트 담기: 어느 화면이든 data-wr 버튼 하나로 담고 빼기(전역 위임 리스너가 처리) */
+  function isWrong(id) { return !!store.wrong[id]; }
+  function toggleWrong(id) {
+    if (store.wrong[id]) delete store.wrong[id]; else store.wrong[id] = Date.now();
+    save(); return !!store.wrong[id];
+  }
+  function wrBtnHTML(id, short) {
+    var on = isWrong(id);
+    return '<button class="wrbtn' + (on ? ' on' : '') + '" data-wr="' + id + '"' + (short ? ' data-short="1"' : '') +
+      ' title="' + (on ? '오답노트에서 빼기' : '오답노트에 담기') + '" aria-pressed="' + on + '">' +
+      (short ? (on ? '✔📝' : '📝') : (on ? '✔ 오답노트' : '＋ 오답노트')) + '</button>';
+  }
   function qNo(q) {
-    if (q.mock) return 'M' + q.mock + '-' + (QDATA.mock[q.mock].indexOf(q) + 1);
+    if (q.mock) {
+      var ml = q.type === 'practical' ? QDATA.mockP[q.mock] : QDATA.mock[q.mock];
+      return (q.type === 'practical' ? 'MP' : 'M') + q.mock + '-' + (ml.indexOf(q) + 1);
+    }
     if (q.user) return 'U' + (store.added[q.type].indexOf(q) + 1);
     return String(QDATA[q.type].indexOf(q) + 1);
   }
@@ -158,7 +175,7 @@
       '<td class="a"><div class="blankslot" id="bs-' + q.id + '"></div>' +
       (!extra ? '<div class="ans">' + ansHTML(q.a) + '</div>' : '') +
       '<div class="rowbtns">' + (extra ? '<button class="sm pri" data-grade="' + q.id + '">채점</button>' : '') +
-      spkBtnsHTML(q.id) + bmBtnHTML(q.id, true) +
+      spkBtnsHTML(q.id) + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) +
       (q.user ? '<button class="sm danger" data-del="' + q.id + '">삭제</button>' : '') + '</div>' +
       (extra ? '<div class="reveal-inline"></div>' : '') + '</td>';
     if (extra) {
@@ -171,7 +188,7 @@
   function fullRow(q) {
     return '<tr data-id="' + q.id + '"><td class="no">' + qNo(q) + '</td><td class="sj">' + iconFor(q.subject) + '<span class="subj-chip">' + esc(q.subject) + '</span></td>' +
       '<td class="q">' + esc(q.q) + '</td><td class="a"><div class="ans">' + ansHTML(q.a) + '</div><div class="hint-hide">클릭하면 정답이 보입니다</div>' +
-      '<div class="rowbtns">' + spkBtnsHTML(q.id) + bmBtnHTML(q.id, true) + (q.user ? '<button class="sm danger" data-del="' + q.id + '">삭제</button>' : '') + '</div></td></tr>';
+      '<div class="rowbtns">' + spkBtnsHTML(q.id) + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) + (q.user ? '<button class="sm danger" data-del="' + q.id + '">삭제</button>' : '') + '</div></td></tr>';
   }
   /* ───────── 메인 페이지: 오늘의 핵심 암기(필답형 1 + 작업형 1) ─────────
      메인(#written)에 들어올 때마다 새로 뽑는다. 최근에 보여 준 문항은 한동안 제외. */
@@ -190,7 +207,7 @@
     return '<article class="kc" data-id="' + q.id + '"><div class="kc-h"><span class="kc-type">' + TYPES[type] + '</span>' + iconFor(q.subject) +
       '<span class="kc-sub">' + esc(q.subject) + ' · No.' + qNo(q) + '</span></div>' +
       '<p class="kc-q">' + esc(q.q) + '</p><div class="kc-a">' + ansHTML(q.a) + '</div>' +
-      '<div class="kc-btns"><button class="sm pri spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊 듣기</button>' + bmBtnHTML(q.id, true) +
+      '<div class="kc-btns"><button class="sm pri spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊 듣기</button>' + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) +
       '<button class="sm" data-kcnext="' + type + '" title="다른 핵심 내용 보기">다른 내용 ↻</button></div></article>';
   }
   function keyPanelHTML() {
@@ -285,6 +302,7 @@
       document.getElementById('tb').classList.toggle('hide', ui.hide);
     });
     document.getElementById('tbody').addEventListener('click', function (e) {
+      if (e.target.closest('[data-wr]')) return; // 전역 리스너가 처리
       var g = e.target.closest('[data-grade]');
       if (g) {
         var gid = g.getAttribute('data-grade'), blanks = listRowBlanks[gid], q = findQ(gid);
@@ -293,7 +311,8 @@
         blanks.forEach(function (b) { b.inp.classList.toggle('ok', b.ok); b.inp.classList.toggle('ng', !b.ok); });
         var rv = g.closest('tr').querySelector('.reveal-inline');
         rv.className = 'reveal-inline ' + (all ? 'ok' : 'ng');
-        rv.textContent = (all ? '정답입니다! ' : '오답이 있습니다. ') + okc + ' / ' + blanks.length + ' 빈칸';
+        rv.textContent = (all ? '정답입니다! ' : '오답이 있습니다. ') + okc + ' / ' + blanks.length + ' 빈칸' +
+          (!all && !isWrong(gid) ? ' · ＋ 오답노트로 담아 두세요' : '');
         return;
       }
       var bm = e.target.closest('[data-bm]');
@@ -340,6 +359,7 @@
       '<div class="seg" id="seg"></div>' +
       '<div class="bar"><button class="pri" id="mstart"></button><button id="mshow">정답 확인·채점</button>' +
       '<label class="chk"><input type="checkbox" id="monly"' + (ui.only ? ' checked' : '') + '> 틀린 문제만</label>' +
+      '<button class="sm" id="mwrong" title="이 회차에서 틀림으로 표시한 문제를 모두 오답노트에 담습니다">📝 틀린 문제 오답노트에 담기</button>' +
       '<button class="danger sm" id="mreset">채점 초기화</button><span class="meta" id="mtime"></span></div>' +
       '<div class="stat" id="msum" style="margin-bottom:12px"></div>' +
       '<div class="wrap"><table class="tbl list" id="tb"><thead><tr><th>No</th><th>' + (type === 'written' ? '과목' : '분야') + '</th><th>문제</th><th>정답 · 채점</th></tr></thead><tbody id="tbody"></tbody></table></div>';
@@ -369,7 +389,7 @@
       return '<tr data-id="' + q.id + '" class="' + (r ? 'r-' + r : '') + '"><td class="no">' + (i + 1) + '</td><td class="sj">' + iconFor(q.subject) + '<span class="subj-chip">' + esc(q.subject) + '</span></td>' +
         '<td class="q">' + esc(q.q) + '</td><td class="a"><div class="ans">' + ansHTML(q.a) + '</div><div class="hint-hide">클릭하면 정답이 보입니다</div>' +
         '<div class="mk"><button class="o' + (r === 'o' ? ' on' : '') + '" data-mk="o">맞음</button><button class="x' + (r === 'x' ? ' on' : '') + '" data-mk="x">틀림</button>' +
-        '<button class="spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊</button>' + bmBtnHTML(q.id, false) + '</div></td></tr>';
+        '<button class="spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊</button>' + bmBtnHTML(q.id, false) + wrBtnHTML(q.id, true) + '</div></td></tr>';
     }
     function drawRows() {
       var h = '';
@@ -402,12 +422,21 @@
       ui.hide = false; drawBtns();
     });
     document.getElementById('monly').addEventListener('change', function (e) { ui.only = e.target.checked; drawRows(); });
+    document.getElementById('mwrong').addEventListener('click', function () {
+      var xs = list.filter(function (q) { return store.mockRes[q.id] === 'x'; });
+      if (!xs.length) { toast('틀림으로 표시한 문제가 없습니다. 채점에서 “틀림”을 먼저 눌러 주세요.'); return; }
+      var added = 0;
+      xs.forEach(function (q) { if (!store.wrong[q.id]) { store.wrong[q.id] = Date.now(); added++; } });
+      save(); drawRows(); drawNav('mock');
+      toast(added ? '틀린 문제 ' + added + '개를 ' + mt.label + ' 오답노트에 담았습니다.' : '이미 모두 오답노트에 담겨 있습니다.');
+    });
     document.getElementById('mreset').addEventListener('click', function () {
       if (!confirm(mt.label + ' ' + n + '회 채점 기록을 초기화할까요?')) return;
       list.forEach(function (q) { delete store.mockRes[q.id]; });
       save(); viewMock();
     });
     document.getElementById('tbody').addEventListener('click', function (e) {
+      if (e.target.closest('[data-wr]')) return; // 전역 리스너가 처리
       var bm = e.target.closest('[data-bm]');
       if (bm) { toggleBM(bm.getAttribute('data-bm')); bm.outerHTML = bmBtnHTML(bm.getAttribute('data-bm'), false); drawNav('bookmarks'); return; }
       var mk = e.target.closest('button[data-mk]');
@@ -576,6 +605,8 @@
     return levelComplete(type, lv - 1);
   }
 
+  /* 오답노트에 들어갈 수 있는 문항: 기본 + 사용자추가 + 같은 유형의 모의고사 */
+  function noteSource(type) { return getList(type).concat(type === 'written' ? mockAll() : mockPAll()); }
   function buildPool(mode) {
     var ui = quizUI[mode];
     if (mode === 'quiz') {
@@ -583,8 +614,8 @@
       ui.i = 0;
       return;
     }
-    var ids = getList(ui.type).filter(function (q) {
-      return hasBlanks(q) && subjOk(q, ui.subj) && store.wrong[q.id];
+    var ids = noteSource(ui.type).filter(function (q) {
+      return subjOk(q, ui.subj) && store.wrong[q.id];
     }).map(function (q) { return q.id; });
     ui.pool = ui.rand ? shuffle(ids) : ids;
     ui.i = 0;
@@ -656,7 +687,8 @@
     var ui = quizUI[mode];
     var isNote = mode === 'note';
     function qcount(t) {
-      return getList(t).filter(function (q) { return hasBlanks(q) && (!isNote || store.wrong[q.id]); }).length;
+      if (isNote) return noteSource(t).filter(function (q) { return store.wrong[q.id]; }).length;
+      return getList(t).filter(hasBlanks).length;
     }
     if (isNote) {
       /* 오답노트는 들어올 때마다 최신 오답 목록으로 다시 만들고, 보던 문제는 유지 */
@@ -674,7 +706,7 @@
     var curLv = isNote ? null : ui.levelByType[ui.type];
     root.innerHTML =
       head(TYPES[ui.type] + (isNote ? ' 오답노트' : ' 퀴즈'),
-        isNote ? TYPES[ui.type] + ' 퀴즈에서 틀린 문제만 모아 다시 풉니다. 이해했다면 “오답 해제”로 목록에서 뺄 수 있습니다.'
+        isNote ? TYPES[ui.type] + ' 퀴즈에서 틀린 문제와, ' + TYPES[ui.type] + ' 목록·모의고사·퀴즈에서 “＋ 오답노트”로 담은 문제를 모아 다시 풉니다. 이해했다면 “오답 해제”로 목록에서 뺄 수 있습니다.'
           : (ui.type === 'written' ? '필답형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞고, 한 레벨을 모두 맞혀야 다음 레벨이 열립니다.' : '작업형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞고, 한 레벨을 모두 맞혀야 다음 레벨이 열립니다.'),
         '<span class="tag" id="qtag"></span>') +
       '<div class="qwrap"><div class="seg seg-type" id="qtseg">' +
@@ -683,7 +715,9 @@
       }).join('') + '</div>' +
       (isNote ? '' : '<div class="seg seg-level" id="qlv">' + levelBtnsHTML(ui.type, curLv) + '</div>') +
       '<div class="bar">' +
-      (isNote ? '<select id="qs"><option value="">전체 과목</option>' + opts(subs, ui.subj) + '</select>' +
+      (isNote ? '<select id="qs"><option value="">전체(과목·모의고사)</option><option value="base"' + (ui.subj === 'base' ? ' selected' : '') + '>기본·사용자추가 문항만</option>' +
+        '<optgroup label="과목">' + opts(subs, ui.subj) + '</optgroup>' +
+        '<optgroup label="모의고사"><option value="mock:all"' + (ui.subj === 'mock:all' ? ' selected' : '') + '>모의고사 전체</option>' + mockOpts(ui.subj) + '</optgroup></select>' +
         '<select id="qo"><option value="seq">순서대로</option><option value="rand"' + (ui.rand ? ' selected' : '') + '>무작위</option></select>' +
         '<button class="danger sm" id="qclear">전체 해제</button>' : '') +
       '<div class="stat" id="qstat"></div></div>' +
@@ -729,7 +763,7 @@
       drawStat();
       if (!ui.pool.length) {
         body.innerHTML = '<div class="qcard"><div class="empty">' + (isNote
-          ? '오답노트가 비어 있습니다.<br>퀴즈에서 틀린 문제는 자동으로 이곳에 담깁니다.'
+          ? '오답노트가 비어 있습니다.<br>퀴즈에서 틀린 문제는 자동으로, 필답형·작업형 목록과 모의고사에서는 “＋ 오답노트”(📝) 버튼으로 담을 수 있습니다.'
           : '조건에 맞는 문제가 없습니다.') + '</div></div>';
         return;
       }
@@ -747,7 +781,11 @@
         '<button id="bbm"></button><button id="bw"></button></div></div>' +
         '<div class="qnav"><button id="bp">◀ 이전</button><div class="jump"><input type="number" id="bj" min="1" max="' + ui.pool.length + '" placeholder="번호"><button id="bjg" class="sm">이동</button></div><button id="bn2" class="dark">다음 ▶</button></div>';
       body.innerHTML = ''; body.appendChild(card);
-      card.querySelector('#abox').appendChild(ab.box);
+      var noBlank = !ab.blanks.length;
+      if (noBlank) {
+        card.querySelector('#abox').innerHTML = '<p class="note">빈칸이 없는 문항입니다. 답을 먼저 떠올리거나 써 본 뒤 “정답 보기”로 확인하세요.</p>';
+        card.querySelector('#bg').style.display = 'none';
+      } else card.querySelector('#abox').appendChild(ab.box);
 
       var graded = false, counted = false;
       function flag() {
@@ -823,6 +861,7 @@
         });
       });
       if (ab.blanks[0]) ab.blanks[0].inp.focus({ preventScroll: true });
+      else card.querySelector('#bs').focus({ preventScroll: true });
     }
   }
 
@@ -859,7 +898,7 @@
       return '<tr data-id="' + q.id + '"><td class="no">' + qNo(q) + '</td>' +
         '<td class="sj">' + iconFor(q.subject) + '<span class="subj-chip">' + esc(kindLabel(q)) + '</span><br><span class="meta" style="font-size:12px">' + esc(q.subject) + '</span></td>' +
         '<td class="q">' + esc(q.q) + '</td><td class="a"><div class="ans">' + ansHTML(q.a) + '</div>' +
-        '<div class="rowbtns"><button class="sm" data-float="' + q.id + '">📌 고정 보기</button>' + spkBtnsHTML(q.id) + '<button class="sm danger" data-bm="' + q.id + '">해제</button></div></td></tr>';
+        '<div class="rowbtns"><button class="sm" data-float="' + q.id + '">📌 고정 보기</button>' + spkBtnsHTML(q.id) + wrBtnHTML(q.id) + '<button class="sm danger" data-bm="' + q.id + '">해제</button></div></td></tr>';
     }
     var visibleIds = [];
     function draw() {
@@ -1344,6 +1383,19 @@
     if (!q) return;
     if (floatState.auto) { floatState.auto = false; updateFpAuto(); }
     speakQ(q, which === 'q' || which === 'a' ? which : 'qa', sp, null, sp);
+  });
+
+  document.addEventListener('click', function (e) {
+    var w = e.target.closest('[data-wr]');
+    if (!w) return;
+    var id = w.getAttribute('data-wr'), q = findQ(id);
+    if (!q) return;
+    var on = toggleWrong(id);
+    document.querySelectorAll('[data-wr="' + id + '"]').forEach(function (b) {
+      b.outerHTML = wrBtnHTML(id, b.hasAttribute('data-short'));
+    });
+    drawNav((location.hash || '#written').slice(1));
+    toast(on ? TYPES[q.type] + ' 오답노트에 담았습니다.' : '오답노트에서 뺐습니다.');
   });
 
   /* ───────── 과목·분야 참고 아이콘 ─────────
