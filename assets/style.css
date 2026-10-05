@@ -332,3 +332,120 @@ button.playing{background:var(--black)!important;color:var(--yellow)!important;b
 .tts-bar.paused .tts-dot{animation:none;opacity:.4}
 .rep-btn.on{border-color:var(--yellow);box-shadow:inset 0 -3px 0 var(--yellow)}
 @media (max-width:600px){.tts-bar{gap:6px;max-width:calc(100vw - 16px)}.tts-bar button{padding:2px 8px}.tts-lbl{max-width:38vw}}
+
+/* ───────── DB 연결 · 학습기록 · 모의고사 문제 입력 ───────── */
+.cdot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#7f8892;margin-right:6px;vertical-align:1px;border:1.5px solid #111417}
+.cdot.on{background:#2fd06a}.cdot.wait{background:var(--yellow);animation:blink 1s infinite}.cdot.local{background:#9aa3ad}.cdot.warn{background:#ff6a3d}
+@keyframes blink{50%{opacity:.35}}
+.brand-title .cdot{width:9px;height:9px;margin:0 0 0 4px;border-color:#111417}
+.side-foot small{color:#98a1aa;line-height:1.4;display:inline-block;margin-top:2px}
+.cwarn{color:#ff8a65!important;font-weight:700}
+.card .cwarn{color:var(--red)!important}
+h2.sub{font-size:16px;margin:22px 0 8px;display:flex;align-items:center;gap:8px}
+h2.sub::before{content:"";width:12px;height:12px;background:var(--yellow);border:2px solid var(--ink)}
+.wrap-s{max-height:none}
+table.tbl.sum,table.tbl.kv{min-width:0}
+.tbl.kv th{position:static;width:170px;background:var(--black);color:#fff;font-size:13px;vertical-align:top}
+.tbl.kv td{font-size:14px}
+.tbl.sum td{padding:8px 12px;font-size:14px}
+.tbl .mono,.mono{font-family:var(--mono);font-size:13px}
+code{font-family:var(--mono);font-size:12.5px;background:#eef0f2;padding:0 4px;border:1px solid var(--line)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:16px 0 4px}
+.kpi{background:var(--panel);border:2px solid var(--ink);padding:10px 14px;display:flex;flex-direction:column;gap:2px;border-top:6px solid var(--yellow)}
+.kpi small{font-size:12px;color:var(--muted);font-weight:700}
+.kpi b{font-family:var(--mono);font-size:22px;line-height:1.2}
+.kpi span{font-size:12px;color:var(--muted);font-family:var(--mono)}
+.okc{color:var(--green);font-weight:800}.ngc{color:var(--red);font-weight:800}
+#mquiz.on-t{background:var(--black);color:var(--yellow)}
+.seg-r{flex-wrap:wrap}
+.seg-r button{min-width:64px;border-bottom:2px solid var(--ink);margin-bottom:-2px}
+.seg i.mine{font-style:normal;font-size:11px;color:var(--blue);margin-left:2px}
+.mine-tag{display:block;margin-top:4px;font-size:10.5px;font-weight:800;background:var(--blue);color:#fff;padding:0 5px;border-radius:2px;width:max-content}
+.medit{margin:4px 0 16px;border-width:3px;border-left:8px solid var(--yellow)}
+.mgrid{display:grid;grid-template-columns:140px 190px 1fr;gap:10px}
+.mgrid .field{margin-top:0}
+.me-prev{background:#fff;border:2px dashed var(--line);padding:8px}
+.meta.warn{color:var(--red);font-weight:700}
+.reveal-inline .reveal{font-weight:400}
+.tbl tr.qz td.a .ans-box{line-height:2.2}
+@media (max-width:860px){
+  .mgrid{grid-template-columns:1fr 1fr}
+  .mgrid .field:last-child{grid-column:1/-1}
+  #nav a{font-size:11px}
+  #nav a .plate{font-size:9.5px}
+  .kpi b{font-size:19px}
+  .tbl.kv th{width:auto;display:block}
+}
+
+/* ───────── 모의고사 퀴즈 형식 ───────── */
+.mdots{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0 0}
+.mdots button{min-width:34px;min-height:30px;padding:0 4px;font-family:var(--mono);font-size:12px;border-width:1.5px}
+.mdots button.o{background:var(--green-bg);border-color:var(--green);color:var(--green)}
+.mdots button.x{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+.mdots button.cur{outline:3px solid var(--yellow);outline-offset:1px;background:var(--yellow-soft)}
+.mdots button.cur.o{background:var(--green-bg)}.mdots button.cur.x{background:var(--red-bg)}
+.qact .o-btn{border-color:var(--green);color:var(--green)}.qact .x-btn{border-color:var(--red);color:var(--red)}
+.mstart .tbl.kv{margin-bottom:6px}
+.score{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:22px;margin:4px 0 10px;padding:12px 16px;border:3px solid;border-left-width:10px}
+.score b{font-size:44px;line-height:1}
+.score span{font-size:20px;font-weight:800}
+.score em{font-style:normal;font-family:var(--font);font-size:14px;font-weight:700;margin-left:auto}
+.score.pass{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.score.fail{border-color:var(--red);color:var(--red);background:var(--red-bg)}
+.mwrong{border:2px solid var(--ink);padding:10px 12px;margin-top:10px;background:#fff}
+.mwrong .mw-q{font-weight:700;white-space:pre-wrap;margin-bottom:6px}
+.mwrong .reveal{margin-top:0}
+@media (max-width:860px){.mdots button{min-width:38px;min-height:38px}.score b{font-size:36px}.score em{margin-left:0;width:100%}}
+
+/* ───────── 로그인 · 계정 · 사용자 관리 ───────── */
+body.gated{overflow:hidden}
+#gate{position:fixed;inset:0;z-index:100;background:var(--black);display:grid;place-items:center;padding:20px;padding-top:max(20px,env(safe-area-inset-top))}
+#gate[hidden]{display:none}
+.gate-box{width:min(420px,100%);background:var(--panel);border:3px solid var(--yellow)}
+.gate-in{padding:22px 24px 24px}
+.gate-in .brand{border:0;padding:0 0 12px}
+.gate-in .brand-title{color:var(--ink);font-size:20px}
+.gate-in button.pri{width:100%;margin-top:8px;min-height:48px;font-size:16px}
+.gate-in input{width:100%}
+.gate-msg{font-weight:700;margin:12px 0}.gate-msg.err{color:var(--red)}
+.uchip{display:flex;align-items:center;gap:8px;background:#1c2126;color:#fff;border:1.5px solid #3a4148;padding:4px 10px 4px 4px;min-height:40px;text-align:left;width:100%}
+.uchip:hover{background:#262c32}
+.uchip[hidden]{display:none}
+.uav{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;background:var(--yellow);color:var(--black);font-weight:900;border-radius:2px}
+.unm{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.unm i{font-style:normal;font-size:10.5px;background:var(--yellow);color:var(--black);padding:0 4px;margin-left:2px;border-radius:2px}
+#modal{position:fixed;inset:0;z-index:90;background:rgba(17,20,23,.6);display:grid;place-items:center;padding:16px}
+.mbox{background:var(--panel);border:3px solid var(--ink);border-top:8px solid var(--yellow);width:min(480px,100%);max-height:90vh;overflow:auto;padding:18px 20px}
+.mbox h2{margin:0 0 10px;font-size:18px}
+.mbox input{width:100%}
+.agrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 120px 130px}
+.agrid input,.agrid select{width:100%;min-width:0}
+.utbl td:nth-child(2){white-space:nowrap}
+.utbl th{white-space:nowrap}
+.utbl td{vertical-align:middle}
+.utbl tr.usel td{background:var(--yellow-soft)!important}
+.utbl tr.udis td{opacity:.55}
+.abtns{display:flex;flex-wrap:wrap;gap:4px;min-width:170px}
+.abtns button{padding:2px 8px;font-size:12px;min-height:28px}
+.pbar{height:8px;background:#e1e5e9;border:1px solid var(--ink);margin:3px 0 2px;min-width:90px}
+.pbar i{display:block;height:100%;background:var(--yellow)}
+.rtag{display:inline-block;font-size:11px;font-weight:800;border:1.5px solid var(--ink);padding:0 6px;border-radius:2px}
+.rtag.adm{background:var(--black);color:var(--yellow)}
+.udet h3{font-size:14px;margin:16px 0 6px}
+.dchart{display:flex;align-items:flex-end;gap:4px;height:140px;padding:6px 4px 0;border-bottom:2px solid var(--ink)}
+.dcol{flex:1 1 0;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;min-width:0}
+.dbar{width:100%;max-width:28px;background:#cfd5db;border:1px solid var(--ink);display:flex;flex-direction:column;justify-content:flex-end;min-height:1px}
+.dbar i{display:block;background:var(--green)}
+.dcol small{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.dcol b{font-family:var(--mono);font-size:10.5px;height:14px}
+.lvrow{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:4px 0}
+.lvrow b{width:52px;font-size:13px}
+.lvc{font-family:var(--mono);font-size:11.5px;border:1.5px solid var(--line);padding:1px 6px;background:#fff}
+.lvc.done{border-color:var(--green);background:var(--green-bg);color:var(--green);font-weight:700}
+@media (max-width:860px){
+  .uchip{width:auto;padding:3px 8px 3px 3px;min-height:36px;flex:0 1 auto;max-width:42vw}
+  .uav{width:28px;height:28px;flex-basis:28px}
+  .agrid{grid-template-columns:1fr 1fr}
+  .utbl td{display:block}
+  .abtns button{min-height:36px}
+}
