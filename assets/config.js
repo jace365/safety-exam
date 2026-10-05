@@ -5,5 +5,5 @@
 window.ISE_CONFIG = {
   supabaseUrl: 'https://ntkezakaccyivhryjrbg.supabase.co/rest/v1/',
   supabaseAnonKey: 'sb_publishable_WJf-XDBQ3Rpz4w4p7yaZVQ_DKWn1ty6',
-  emailDomain: 'ise.local'
+  emailDomain: 'admin@ise.local'
 };
