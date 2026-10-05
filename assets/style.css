@@ -509,3 +509,7 @@ button.exb.on{background:var(--blue);color:#fff}
   .authbar .ab-btns{flex:0 0 auto;gap:4px}
   .authbar .ab-btns button{min-height:32px;padding:0 8px;font-size:12px}
 }
+
+.ex-tag.base{background:#555}
+.ex-img{margin:6px 0 8px;padding:6px;background:#fff;border:1px solid var(--line);max-width:420px}
+.ex-img svg{display:block;width:100%;height:auto}

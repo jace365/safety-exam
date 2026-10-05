@@ -1,6 +1,6 @@
 /* 오프라인 지원 서비스 워커 — 한 번 접속하면 인터넷 없이도 열립니다.
  * 내용을 수정해 다시 배포할 때는 CACHE 버전을 올려 주세요. */
-const CACHE = 'ise-pwa-v23';
+const CACHE = 'ise-pwa-v24';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/style.css', 'assets/app.js', 'assets/config.js', 'assets/vendor/supabase.js',
@@ -9,7 +9,7 @@ const FILES = [
   'data/written-01.js', 'data/written-02.js', 'data/written-03.js', 'data/written-04.js', 'data/written-05.js', 'data/written-06.js', 'data/written-07.js',
   'data/mock-01.js', 'data/mock-02.js', 'data/mock-03.js', 'data/mock-04.js', 'data/mock-05.js',
   'data/mock-p-01.js', 'data/mock-p-02.js', 'data/mock-p-03.js', 'data/mock-p-04.js', 'data/mock-p-05.js',
-  'data/practical-01.js', 'data/practical-02.js', 'data/practical-03.js', 'data/practical-04.js', 'data/practical-05.js'
+  'data/practical-01.js', 'data/practical-02.js', 'data/practical-03.js', 'data/practical-04.js', 'data/practical-05.js', 'data/explain.js'
 ];
 
 self.addEventListener('install', function (e) {

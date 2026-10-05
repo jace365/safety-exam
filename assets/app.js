@@ -2194,7 +2194,19 @@
     '④ 계산 문제는 공식의 의미와 단위를 짚는다. ⑤ 마지막 줄에 "암기 팁:"으로 시작하는 한 줄을 붙인다(앞글자 따기·연상 등). ' +
     '⑥ 마크다운 기호(**, #, -)와 서론·인사말은 쓰지 않는다. 한국어 존댓말 평서문.';
   function exPlainA(a) { return String(a).replace(/\{\{([^}]+)\}\}/g, function (m, g) { return g.split('|')[0].trim(); }); }
-  function exOf(q) { if (!q) return null; if (q.ex) return { text: q.ex, by: 'data' }; return EX[q.id] || null; }
+  /* 우선순위: 사이트에서 사람이 고친 해설(by:user) > 기본 해설(data/explain.js) > AI 해설 */
+  function exOf(q) {
+    if (!q) return null;
+    var r = EX[q.id];
+    if (r && r.by === 'user') return r;
+    var d = q.ex || (window.EXDATA && window.EXDATA[q.id]);
+    if (d) return { text: d, by: 'data' };
+    return r || null;
+  }
+  function exImgHTML(q) {
+    var k = window.EXIMGMAP && window.EXIMGMAP[q.id], svg = k && window.EXIMG && window.EXIMG[k];
+    return svg ? '<figure class="ex-img">' + svg + '</figure>' : '';
+  }
   function canGenEx() { return !!(Cloud.sample || store.settings.apiKey); }
   function askClaude(prompt, json) {
     if (Cloud.sample) return (json ? Cloud.sample.json(prompt, { modelTier: 'default' }) : Cloud.sample(prompt, { modelTier: 'default' }).then(function (r) { return r.text; }));
@@ -2230,13 +2242,13 @@
   }
   function exBoxHTML(q, rec, state) {
     var h = '<div class="exbox" data-ex="' + q.id + '"><div class="ex-h"><b>💡 해설</b>' +
-      (rec ? (rec.by === 'ai' ? '<span class="ex-tag">AI 해설</span>' : rec.by === 'data' ? '' : '<span class="ex-tag ed">' + esc(rec.uid || '관리자') + ' 작성</span>') : '') +
+      (rec ? (rec.by === 'ai' ? '<span class="ex-tag">AI 해설</span>' : rec.by === 'data' ? '<span class="ex-tag base">기본 해설</span>' : '<span class="ex-tag ed">' + esc(rec.uid || '관리자') + ' 작성</span>') : '') +
       (rec ? '<button class="sm spk" data-spkex="' + q.id + '" title="해설 듣기">🔊</button>' : '') +
-      (isAdmin() || Cloud.state !== 'on' ? '<span class="ex-act">' + (rec && rec.by !== 'data' || !rec ? '<button class="sm" data-exedit="' + q.id + '">✎ ' + (rec ? '수정' : '직접 작성') + '</button>' : '') +
+      (isAdmin() || Cloud.state !== 'on' ? '<span class="ex-act">' + '<button class="sm" data-exedit="' + q.id + '">✎ ' + (rec ? '수정' : '직접 작성') + '</button>' +
         (canGenEx() && rec && rec.by !== 'data' ? '<button class="sm" data-exregen="' + q.id + '">↻ 다시 생성</button>' : '') + '</span>' : '') + '</div>';
     if (state === 'wait') h += '<div class="ex-t note"><span class="spin"></span>Claude가 해설을 쓰는 중입니다… (한 번 만들면 모든 사용자가 바로 봅니다)</div>';
     else if (state && state.err) h += '<div class="ex-t status err">해설을 만들지 못했습니다: ' + esc(state.err) + ' <button class="sm" data-exregen="' + q.id + '">다시 시도</button></div>';
-    else if (rec) h += '<div class="ex-t">' + esc(rec.text) + '</div>' + (rec.by === 'ai' ? '<div class="ex-note">AI가 만든 해설입니다. 수치·법령은 정답과 현행 법령을 기준으로 확인하세요.</div>' : '');
+    else if (rec) h += exImgHTML(q) + '<div class="ex-t">' + esc(rec.text) + '</div>' + (rec.by === 'ai' ? '<div class="ex-note">AI가 만든 해설입니다. 수치·법령은 정답과 현행 법령을 기준으로 확인하세요.</div>' : '');
     else h += '<div class="ex-t note">아직 해설이 없습니다.' + (canGenEx() ? ' <button class="sm pri" data-exregen="' + q.id + '">💡 해설 만들기</button>' : (Cloud.mode === 'sb' ? ' (관리자가 해설을 만들면 여기에 보입니다)' : ' (claude.ai 링크로 열면 자동으로 만들어집니다)')) + '</div>';
     return h + '</div>';
   }
@@ -2487,9 +2499,10 @@
     document.getElementById('cfSign').addEventListener('change', saveCfg);
     document.getElementById('cfAppr').addEventListener('change', saveCfg);
     function exStat() {
-      var all = exAllQs(), has = all.filter(function (q) { return exOf(q); }).length, ai = all.filter(function (q) { var r = exOf(q); return r && r.by === 'ai'; }).length;
+      var all = exAllQs(), n = { data: 0, ai: 0, user: 0, none: 0 };
+      all.forEach(function (q) { var r = exOf(q); n[r ? (r.by === 'ai' ? 'ai' : r.by === 'data' ? 'data' : 'user') : 'none']++; });
       var el = document.getElementById('exStat');
-      if (el) el.innerHTML = '전체 문항 <b>' + all.length + '</b> · 해설 있음 <b>' + has + '</b> (AI ' + ai + ' · 직접 작성 ' + (has - ai) + ') · 없음 <b>' + (all.length - has) + '</b>';
+      if (el) el.innerHTML = '전체 문항 <b>' + all.length + '</b> · 기본 해설 <b>' + n.data + '</b> · 직접 작성 <b>' + n.user + '</b> · AI <b>' + n.ai + '</b> · 없음 <b>' + n.none + '</b> (없음은 주로 사용자가 입력한 문제)';
     }
     exStat();
     document.getElementById('exGo').addEventListener('click', function () {
