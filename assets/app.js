@@ -79,7 +79,7 @@
      관리자(role:'admin')는 accounts·progress 컬렉션 전체를 읽어 사용자별 진도를 본다.
      기본 관리자 admin / admin 은 DB에 계정이 하나도 없을 때 자동 생성되며 첫 로그인 때 비밀번호 변경을 요구한다.
      claude.ai 밖(파일로 열기)에서는 window.claude가 없어 로그인 없이 이 브라우저(localStorage)에만 저장한다. */
-  var Cloud = { state: 'off', msg: '', warn: '', db: null, cuid: null, me: null, prog: null, bank: null, logs: null, sample: null, dl: null,
+  var Cloud = { mode: 'local', sb: null, state: 'off', msg: '', warn: '', db: null, cuid: null, me: null, prog: null, bank: null, logs: null, sample: null, dl: null,
     timers: {}, busy: {}, again: {}, lastSave: 0, lastLoad: 0, today: '', todayEv: [], logQ: [], unsub: [] };
   var CLOUD_TXT = { off: '로컬 저장', local: '로컬 저장(이 브라우저)', wait: 'DB 연결 중…', login: '로그인 필요', on: '온라인 DB 연결됨' };
   var SESSKEY = 'ise.session';
@@ -125,7 +125,7 @@
       Cloud.warn = ''; setCloud('local', 'DB 연결이 끊겨 이 브라우저에만 저장합니다.'); return;
     }
     Cloud.warn = code === 'quota_exceeded' ? 'DB 용량이 가득 찼습니다. 오래된 기록을 정리해야 합니다.' :
-      code === 'invalid_argument' ? '이 Claude 계정에는 DB 쓰기 권한이 없습니다. 사이트 소유자가 공유 설정에서 편집 권한을 줘야 합니다.' :
+      code === 'invalid_argument' ? (Cloud.mode === 'sb' ? 'DB 쓰기 권한이 없습니다(로그인이 끊겼거나 계정이 승인 대기·사용 중지 상태).' : '이 Claude 계정에는 DB 쓰기 권한이 없습니다. 사이트 소유자가 공유 설정에서 편집 권한을 줘야 합니다.') :
       code === 'too_big' ? (e.message || '문서가 너무 큽니다.') : 'DB 저장 실패(' + (code || '오류') + ') — 다음 변경 때 다시 시도합니다.';
     setCloud();
   }
@@ -221,7 +221,7 @@
     return '<div class="gate-box"><div class="hazard"></div><div class="gate-in">' +
       '<div class="brand"><div class="brand-mark" aria-hidden="true">!</div><div><div class="brand-title">산업안전기사 실기</div><div class="brand-sub" style="display:block">사용자 로그인 · 온라인 진도 관리</div></div></div>' +
       (mode === 'wait' ? '<p class="gate-msg"><span class="spin"></span>온라인 DB에 연결하는 중…</p>' :
-       mode === 'nodb' ? '<p class="gate-msg err">온라인 DB를 쓸 수 없습니다. Claude에 로그인한 상태로 이 링크를 열어 주세요.<br>(' + esc(Cloud.msg || '') + ')</p><button id="gGuest">로그인 없이 이 기기에서만 사용</button>' :
+       mode === 'nodb' ? '<p class="gate-msg err">온라인 DB를 쓸 수 없습니다. ' + (Cloud.mode === 'sb' ? '인터넷 연결과 Supabase 설정을 확인하세요.' : 'Claude에 로그인한 상태로 이 링크를 열어 주세요.') + '<br>(' + esc(Cloud.msg || '') + ')</p><button id="gGuest">로그인 없이 이 기기에서만 사용</button>' :
        (c.allowSignup ? '<div class="gate-tabs" role="tablist"><button data-gt="login" class="' + (su ? '' : 'on') + '" role="tab">로그인</button><button data-gt="signup" class="' + (su ? 'on' : '') + '" role="tab">회원가입</button></div>' : '') +
        (su ?
         '<form id="gForm" autocomplete="on" onsubmit="return false">' +
@@ -284,6 +284,7 @@
     var gg2 = document.getElementById('gGuest2'); if (gg2) gg2.addEventListener('click', guest);
   }
   function signup(id, name, pw) {
+    if (Cloud.mode === 'sb') return sbSignup(id, name, pw);
     return loadCfg().then(function () {
       var c = cfg();
       if (!c.allowSignup) return '지금은 회원가입이 닫혀 있습니다. 관리자에게 계정을 요청하세요.';
@@ -314,13 +315,14 @@
       b.className = 'authbar out';
       b.innerHTML = '<span class="ab-st"><span class="cdot ' + Cloud.state + '"></span>' + (Cloud.state === 'wait' ? '연결 중…' : '로그인하지 않았습니다') + '</span>' +
         (Cloud.state === 'login' ? '<span class="ab-btns"><button class="sm pri" data-ab="in">로그인 · 회원가입</button></span>' : '');
-    } else if (window.claude) {
+    } else if (window.claude || Cloud.mode === 'sb') {
       b.className = 'authbar out';
       b.innerHTML = '<span class="ab-st"><span class="cdot local"></span>로그인하지 않음 — 진도가 <b>이 기기에만</b> 저장됩니다</span>' +
         (Cloud.db ? '<span class="ab-btns"><button class="sm pri" data-ab="in">로그인 · 회원가입</button></span>' : '');
     } else {
       b.className = 'authbar local';
-      b.innerHTML = '<span class="ab-st"><span class="cdot local"></span>오프라인 버전 — 로그인 없이 이 기기에만 저장됩니다</span>';
+      b.innerHTML = '<span class="ab-st"><span class="cdot local"></span>' + (sbCfg().url ? '온라인 DB 연결 안 됨 — 이 기기에만 저장' : '온라인 DB 설정 전 — 이 기기에만 저장됩니다') + '</span>' +
+        '<span class="ab-btns"><button class="sm pri" data-ab="sbset">🔌 온라인 DB 설정</button></span>';
     }
   }
   document.addEventListener('click', function (e) {
@@ -328,10 +330,12 @@
     var k = a.getAttribute('data-ab');
     if (k === 'acc') openAccount();
     else if (k === 'out') { if (confirm('로그아웃할까요?')) logout(false); }
+    else if (k === 'sbset') openSbSetup();
     else if (k === 'in') { gateTab = 'login'; Cloud.state = 'login'; showGate('login'); drawAuthBar(); }
   });
   function hideGate() { var g = document.getElementById('gate'); if (g) g.hidden = true; document.body.classList.remove('gated'); }
   function login(id, pw) {
+    if (Cloud.mode === 'sb') return sbLogin(id, pw);
     return accRef(id).get().then(function (s) {
       if (!s.exists) return '아이디 또는 비밀번호가 맞지 않습니다.';
       var a = s.data();
@@ -351,6 +355,7 @@
       Cloud.unsub.forEach(function (u) { try { u(); } catch (e) {} }); Cloud.unsub = [];
       var s = readSession() || {}; writeSession({ last: s.last || (Cloud.me && Cloud.me.id) });
       Cloud.me = null; Cloud.prog = Cloud.bank = Cloud.logs = null; Cloud.logQ = []; Cloud.todayEv = [];
+      if (Cloud.mode === 'sb' && Cloud.sb) Cloud.sb.auth.signOut().catch(function () {});
       KEY = 'ise.v1'; store = load(); rebuildUserMocks(); mockUI.qs = null;
       setCloud('login', ''); closeModal(); route(); showGate('login');
       if (!silent) toast('로그아웃했습니다.');
@@ -414,7 +419,12 @@
   }
   function cloudInit() {
     var C = window.claude;
-    if (!C || typeof C.use !== 'function') { setCloud('local', 'claude.ai 밖에서 열어 이 브라우저에만 저장합니다.'); return; }
+    if (!C || typeof C.use !== 'function') {
+      var sc = sbCfg();
+      if (sc.url && sc.key && window.supabase && window.supabase.createClient) { sbInit(sc); return; }
+      setCloud('local', sc.url ? 'Supabase 라이브러리를 불러오지 못해 이 브라우저에만 저장합니다.' : '온라인 DB 설정 전이라 이 브라우저에만 저장합니다.'); return;
+    }
+    Cloud.mode = 'artifact';
     setCloud('wait', ''); showGate('wait');
     C.use('sample').then(function (x) { Cloud.sample = x; }, function () {});
     C.use('downloads').then(function (x) { Cloud.dl = x; }, function () {});
@@ -439,6 +449,230 @@
     });
     window.addEventListener('pagehide', function () { if (Cloud.state === 'on') cloudSaveAll(); });
     document.addEventListener('visibilitychange', function () { if (document.hidden && Cloud.state === 'on') cloudSaveAll(); });
+  }
+
+  /* ═════════ Supabase 온라인 DB (claude.ai 밖: GitHub Pages 등) ═════════
+     assets/config.js 의 window.ISE_CONFIG = { supabaseUrl, supabaseAnonKey, emailDomain } 로 연결한다.
+     (설정 전이면 상태 막대의 [온라인 DB 설정]에서 입력 → 이 브라우저 localStorage 'ise.sbcfg'에 보관)
+     DB는 docs 표(path → JSON) 하나이고, makeSbDb()가 Artifact DB와 같은 모양(doc/collection/get/set/update/delete/onSnapshot)으로 감싼다.
+     비밀번호는 Supabase Auth가 관리: 아이디 son3 → 이메일 son3@<emailDomain>, 비밀번호는 앞에 'ise:'를 붙여 저장(최소 길이 6자 규칙 회피). */
+  function sbCfg() {
+    var o = {}, c = window.ISE_CONFIG || {};
+    try { o = JSON.parse(localStorage.getItem('ise.sbcfg') || '{}') || {}; } catch (e) {}
+    return { url: (o.url || c.supabaseUrl || '').trim().replace(/\/+$/, ''), key: (o.key || c.supabaseAnonKey || '').trim(), domain: (o.domain || c.emailDomain || 'ise.local').trim(), local: !!(o.url && o.key) };
+  }
+  function emailOf(id) { return id + '@' + sbCfg().domain; }
+  function idOfEmail(em) { return String(em || '').split('@')[0].toLowerCase(); }
+  function sbPw(pw) { return 'ise:' + pw; }
+  function dbName() { return Cloud.mode === 'sb' ? 'Supabase 온라인 DB' : 'claude.ai 온라인 DB'; }
+  function sbErr(e) {
+    var msg = (e && (e.message || e.error_description)) || '', c = (e && e.code) || '';
+    if (/signup_closed/.test(msg)) return { code: 'signup_closed', message: '회원가입이 닫혀 있습니다.' };
+    if (c === '42501' || /row-level security|forbidden|permission denied/i.test(msg)) return { code: 'invalid_argument', message: msg };
+    if (c === 'P0002' || /not_found/.test(msg)) return { code: 'not_found', message: msg };
+    if (/fetch|network|timeout/i.test(msg)) return { code: 'unavailable', message: msg };
+    return { code: c || 'error', message: msg };
+  }
+  function sbRes(r) { if (r.error) throw sbErr(r.error); return r.data; }
+  function makeSbDb(sb) {
+    var listeners = [], chan = null;
+    function parentOf(p) { return p.replace(/\/[^/]+$/, ''); }
+    function snapOf(path, data) {
+      return { id: path.split('/').pop(), exists: data != null, data: function () { return data == null ? undefined : JSON.parse(JSON.stringify(data)); }, metadata: { fromCache: false, hasPendingWrites: false } };
+    }
+    function ensureChan() {
+      if (chan) return;
+      try {
+        chan = sb.channel('ise-docs-' + Math.random().toString(36).slice(2, 8))
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, function (pl) {
+            var row = pl.new && pl.new.path ? pl.new : null, path = row ? row.path : (pl.old && pl.old.path);
+            if (!path) return;
+            listeners.slice().forEach(function (l) { l(path, row ? row.data : null); });
+          }).subscribe();
+      } catch (e) { chan = null; }
+    }
+    function docRef(path) {
+      var ref = {
+        id: path.split('/').pop(), path: path,
+        get: function () { return sb.from('docs').select('path,data').eq('path', path).maybeSingle().then(function (r) { var d = sbRes(r); return snapOf(path, d ? d.data : null); }); },
+        set: function (data) { return sb.from('docs').upsert({ path: path, data: data }, { onConflict: 'path' }).then(sbRes); },
+        update: function (patch) { return sb.rpc('ise_doc_update', { p_path: path, p_patch: patch }).then(sbRes); },
+        delete: function () { return sb.from('docs').delete().eq('path', path).then(sbRes); },
+        collection: function (name) { return colRef(path + '/' + name); },
+        /* 실시간 + 30초마다 다시 읽기(실시간이 꺼져 있어도 결국 맞춰짐) */
+        onSnapshot: function (cb, onErr) {
+          var last = '@', alive = true;
+          function emit(data) { var j = JSON.stringify(data); if (j === last) return; last = j; cb(snapOf(path, data)); }
+          function pull() { if (alive) ref.get().then(function (s) { emit(s.exists ? s.data() : null); }, function (e) { if (onErr) onErr(e); }); }
+          var l = function (p, data) { if (p === path) emit(data); };
+          listeners.push(l); ensureChan(); pull();
+          var t = setInterval(pull, 30000);
+          return function () { alive = false; clearInterval(t); listeners = listeners.filter(function (x) { return x !== l; }); };
+        }
+      };
+      return ref;
+    }
+    function colRef(path, ord, lim) {
+      return {
+        path: path,
+        doc: function (id) { return docRef(path + '/' + (id || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8)))); },
+        orderBy: function (f, dir) { return colRef(path, [f, dir || 'asc'], lim); },
+        limit: function (n) { return colRef(path, ord, n); },
+        get: function () {
+          var q = sb.from('docs').select('path,data').eq('parent', path);
+          // 학습기록 문서 id가 날짜로 시작하므로 date 정렬은 path 정렬로 대신한다
+          q = ord && ord[0] === 'date' ? q.order('path', { ascending: ord[1] !== 'desc' }) : q.order('path', { ascending: true });
+          if (lim) q = q.limit(lim);
+          return q.then(function (r) {
+            var rows = sbRes(r) || [];
+            if (ord && ord[0] !== 'date') rows.sort(function (a, b) { var x = a.data[ord[0]], y = b.data[ord[0]]; return (x < y ? -1 : x > y ? 1 : 0) * (ord[1] === 'desc' ? -1 : 1); });
+            var docs = rows.map(function (x) { return snapOf(x.path, x.data); });
+            return { docs: docs, size: docs.length, empty: !docs.length, docChanges: function () { return []; } };
+          });
+        },
+        onSnapshot: function (cb, onErr) {
+          var seen = {}, self = this, alive = true;
+          function pull() {
+            if (!alive) return;
+            self.get().then(function (qs) {
+              var ch = [], now = {};
+              qs.docs.forEach(function (d) { var j = JSON.stringify(d.data()); now[d.id] = 1; if (seen[d.id] !== j) { ch.push({ type: seen[d.id] === undefined ? 'added' : 'modified', doc: d }); seen[d.id] = j; } });
+              Object.keys(seen).forEach(function (id) { if (!now[id]) { ch.push({ type: 'removed', doc: snapOf(path + '/' + id, null) }); delete seen[id]; } });
+              if (ch.length || !pull.done) { pull.done = true; qs.docChanges = function () { return ch; }; cb(qs); }
+            }, function (e) { if (onErr) onErr(e); });
+          }
+          var l = function (p, data) {
+            if (parentOf(p) !== path) return;
+            var id = p.split('/').pop(), j = data == null ? undefined : JSON.stringify(data);
+            if (seen[id] === j) return;
+            var type = data == null ? 'removed' : seen[id] === undefined ? 'added' : 'modified';
+            if (data == null) delete seen[id]; else seen[id] = j;
+            var d = snapOf(p, data), qs = { docs: [d], size: 1, empty: false, docChanges: function () { return [{ type: type, doc: d }]; } };
+            cb(qs);
+          };
+          listeners.push(l); ensureChan(); pull();
+          var t = setInterval(pull, 60000);
+          return function () { alive = false; clearInterval(t); listeners = listeners.filter(function (x) { return x !== l; }); };
+        }
+      };
+    }
+    return { doc: docRef, collection: colRef };
+  }
+  function sbInit(sc) {
+    Cloud.mode = 'sb';
+    setCloud('wait', ''); showGate('wait');
+    var sb;
+    try { sb = window.supabase.createClient(sc.url, sc.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'ise.sb.auth' } }); }
+    catch (e) { setCloud('local', 'Supabase 주소·키가 올바르지 않습니다.'); showGate('nodb'); return; }
+    Cloud.sb = sb; Cloud.db = makeSbDb(sb);
+    loadCfg().then(function () { return sb.auth.getSession(); }).then(function (r) {
+      var ses = r && r.data && r.data.session;
+      if (!ses) { setCloud('login', ''); showGate('login'); return; }
+      var id = idOfEmail(ses.user.email), s = readSession() || {};
+      return accRef(id).get().then(function (snap) {
+        var a = snap.exists ? snap.data() : null;
+        if (!a || a.disabled || a.pending || (s.id === id && s.sv && (a.sv || 1) !== s.sv)) {
+          return sb.auth.signOut().then(function () { writeSession({ last: id }); setCloud('login', ''); showGate('login'); });
+        }
+        writeSession({ id: id, sv: a.sv || 1, last: id });
+        return startSession(a);
+      });
+    }).catch(function (e) {
+      setCloud('local', 'Supabase 연결 실패(' + ((e && (e.code || e.message)) || '오류') + ')'); showGate('nodb');
+    });
+    window.addEventListener('pagehide', function () { if (Cloud.state === 'on') cloudSaveAll(); });
+    document.addEventListener('visibilitychange', function () { if (document.hidden && Cloud.state === 'on') cloudSaveAll(); });
+  }
+  var CONFIRM_MSG = 'Supabase에서 이메일 확인이 켜져 있어 로그인할 수 없습니다. Supabase › Authentication › Sign In / Providers › Email 의 "Confirm email"을 끄고 다시 시도하세요.';
+  function sbFinishLogin(id, a) {
+    if (a.disabled || a.pending) return Cloud.sb.auth.signOut().then(function () { return a.disabled ? '사용이 중지된 계정입니다. 관리자에게 문의하세요.' : '관리자 승인을 기다리는 계정입니다. 승인 후 다시 로그인하세요.'; });
+    writeSession({ id: id, sv: a.sv || 1, last: id });
+    retrying(function () { return accRef(id).update({ lastLogin: Date.now(), lastDev: DEV }); }).catch(cloudErr);
+    return startSession(a).then(function () { return ''; });
+  }
+  function sbBootstrapDoc() {
+    var a = { id: 'admin', name: '관리자', role: 'admin', mustChange: true, disabled: false, pending: false, sv: 1, createdAt: Date.now(), createdBy: 'system' };
+    return accRef('admin').set(a).then(function () { return accRef('admin').get(); }).then(function (s) { return sbFinishLogin('admin', s.data()); });
+  }
+  function sbLogin(id, pw) {
+    var sb = Cloud.sb;
+    return sb.auth.signInWithPassword({ email: emailOf(id), password: sbPw(pw) }).then(function (r) {
+      if (r.error) {
+        if (/confirm/i.test(r.error.message)) return CONFIRM_MSG;
+        if (id === 'admin' && pw === 'admin') {
+          // 처음 설치: admin/admin 계정을 만든다(DB에 관리자가 아직 없을 때만)
+          return sb.rpc('ise_needs_bootstrap').then(function (b) {
+            if (b.error) return 'DB 설정이 안 된 것 같습니다. supabase/setup.sql을 SQL Editor에서 실행했는지 확인하세요. (' + b.error.message + ')';
+            if (b.data !== true) return '아이디 또는 비밀번호가 맞지 않습니다.';
+            return sb.auth.signUp({ email: emailOf('admin'), password: sbPw('admin') }).then(function (s) {
+              if (s.error) return /registered|exists/i.test(s.error.message) ? '아이디 또는 비밀번호가 맞지 않습니다.' : '관리자 계정 생성 실패: ' + s.error.message;
+              if (!s.data.session) return CONFIRM_MSG;
+              return sbBootstrapDoc();
+            });
+          });
+        }
+        return '아이디 또는 비밀번호가 맞지 않습니다.';
+      }
+      return accRef(id).get().then(function (s) {
+        if (s.exists) return sbFinishLogin(id, s.data());
+        if (id === 'admin') return sb.rpc('ise_needs_bootstrap').then(function (b) { return b.data === true ? sbBootstrapDoc() : sb.auth.signOut().then(function () { return '계정 정보가 없습니다.'; }); });
+        return sb.auth.signOut().then(function () { return '계정 정보가 없습니다. 관리자에게 문의하세요.'; });
+      });
+    }).catch(function (e) { return '로그인 실패: ' + ((e && (e.code || e.message)) || '오류'); });
+  }
+  function sbSignup(id, name, pw) {
+    var sb = Cloud.sb;
+    return loadCfg().then(function () {
+      if (!cfg().allowSignup) return '지금은 회원가입이 닫혀 있습니다. 관리자에게 계정을 요청하세요.';
+      return sb.auth.signUp({ email: emailOf(id), password: sbPw(pw) }).then(function (r) {
+        if (r.error) return /registered|exists/i.test(r.error.message) ? '이미 사용 중인 아이디입니다.' :
+          /invalid/i.test(r.error.message) ? '가입 실패: ' + r.error.message + ' (assets/config.js의 emailDomain을 다른 값으로 바꿔 보세요)' : '가입 실패: ' + r.error.message;
+        if (!r.data.session) return CONFIRM_MSG;
+        var a = { id: id, name: name, role: 'user', mustChange: false, disabled: false, pending: false, sv: 1, createdAt: Date.now(), createdBy: 'self' };
+        return accRef(id).set(a).then(function () { return accRef(id).get(); }).then(function (s) {
+          var d = s.data();
+          if (d.pending) return sb.auth.signOut().then(function () {
+            gateTab = 'login'; showGate('login');
+            var e = document.getElementById('gErr'); if (e) { e.className = 'status'; e.textContent = '가입 신청이 접수되었습니다. 관리자가 승인하면 로그인할 수 있습니다.'; }
+            var gi = document.getElementById('gId'); if (gi) gi.value = id; return '';
+          });
+          gateTab = 'login';
+          return sbFinishLogin(id, d).then(function (m) { if (!m) toast('가입을 환영합니다! ' + name + '님 계정으로 로그인했습니다.'); return m; });
+        });
+      });
+    }).catch(function (e) {
+      var er = sbErr(e); if (Cloud.sb) Cloud.sb.auth.signOut();
+      return er.code === 'signup_closed' ? '지금은 회원가입이 닫혀 있습니다.' : '가입 실패: ' + (er.message || er.code);
+    });
+  }
+  /* 관리자: 새 계정 — 별도 클라이언트로 가입만 시키고(관리자 로그인 유지) 계정 문서는 관리자 권한으로 쓴다 */
+  function sbCreateUser(id, pw) {
+    var sc = sbCfg();
+    var tmp = window.supabase.createClient(sc.url, sc.key, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'ise.sb.tmp' } });
+    return tmp.auth.signUp({ email: emailOf(id), password: sbPw(pw) }).then(function (r) {
+      if (r.error) throw { code: /registered|exists/i.test(r.error.message) ? 'exists' : 'error', message: r.error.message };
+      return tmp.auth.signOut().catch(function () {});
+    });
+  }
+  function openSbSetup() {
+    var sc = sbCfg();
+    var m = openModal('<h2>🔌 온라인 DB(Supabase) 연결</h2>' +
+      '<p class="note">Supabase 프로젝트의 <b>Project Settings › API</b>에서 Project URL과 anon(public) 키를 복사해 넣으세요. 여기 넣은 값은 이 브라우저에만 저장됩니다. 모든 기기에서 쓰려면 아래 <b>config.js 내려받기</b>로 받은 파일을 사이트의 <code>assets/config.js</code>에 덮어 올리세요.</p>' +
+      '<div class="field"><label for="sbU">Project URL</label><input type="text" id="sbU" placeholder="https://xxxx.supabase.co" value="' + esc(sc.url) + '"></div>' +
+      '<div class="field"><label for="sbK">anon public 키</label><input type="text" id="sbK" placeholder="eyJhbGciOi…" value="' + esc(sc.key) + '"></div>' +
+      '<div class="field"><label for="sbD">아이디용 이메일 도메인(보통 그대로)</label><input type="text" id="sbD" value="' + esc(sc.domain) + '"></div>' +
+      '<div class="row"><button class="pri" id="sbOk">저장하고 연결</button><button id="sbFile">config.js 내려받기</button>' + (sc.local ? '<button class="danger" id="sbClr">이 브라우저 설정 지우기</button>' : '') + '<button data-close>닫기</button></div>');
+    function vals() { return { url: m.querySelector('#sbU').value.trim(), key: m.querySelector('#sbK').value.trim(), domain: m.querySelector('#sbD').value.trim() || 'ise.local' }; }
+    m.querySelector('#sbOk').addEventListener('click', function () {
+      var v = vals(); if (!/^https:\/\/.+/.test(v.url) || v.key.length < 20) { toast('URL(https://…)과 anon 키를 확인하세요.'); return; }
+      try { localStorage.setItem('ise.sbcfg', JSON.stringify(v)); } catch (e) {}
+      location.reload();
+    });
+    m.querySelector('#sbFile').addEventListener('click', function () {
+      var v = vals();
+      saveFile('config.js', '/* 온라인 DB(Supabase) 연결 설정 — anon 키는 공개해도 되는 키입니다(데이터는 setup.sql의 행 보안으로 보호). */\nwindow.ISE_CONFIG = {\n  supabaseUrl: ' + JSON.stringify(v.url) + ',\n  supabaseAnonKey: ' + JSON.stringify(v.key) + ',\n  emailDomain: ' + JSON.stringify(v.domain) + '\n};\n', 'text/javascript');
+    });
+    var c = m.querySelector('#sbClr'); if (c) c.addEventListener('click', function () { try { localStorage.removeItem('ise.sbcfg'); } catch (e) {} location.reload(); });
   }
 
   /* ── 모달(내 계정 · 비밀번호 변경) ── */
@@ -475,6 +709,21 @@
       if (nw === cur) { er.textContent = '현재 비밀번호와 다른 비밀번호를 쓰세요.'; return; }
       if (Cloud.me.id === 'admin' && nw === 'admin') { er.textContent = '기본 비밀번호(admin)는 쓸 수 없습니다.'; return; }
       var btn = m.querySelector('#pOk'); btn.disabled = true; er.textContent = '';
+      if (Cloud.mode === 'sb') {
+        var sb = Cloud.sb, em = emailOf(Cloud.me.id);
+        sb.auth.signInWithPassword({ email: em, password: sbPw(cur) }).then(function (r) {
+          if (r.error) { er.textContent = '현재 비밀번호가 맞지 않습니다.'; btn.disabled = false; return; }
+          return sb.auth.updateUser({ password: sbPw(nw) }).then(function (u) {
+            if (u.error) throw { message: u.error.message };
+            return accRef(Cloud.me.id).get();
+          }).then(function (s) {
+            var sv = ((s && s.data() && s.data().sv) || 1) + 1;
+            Cloud.me.sv = sv; writeSession({ id: Cloud.me.id, sv: sv, last: Cloud.me.id });
+            return retrying(function () { return accRef(Cloud.me.id).update({ mustChange: false, sv: sv, pwChangedAt: Date.now() }); });
+          }).then(function () { closeModal(); toast('비밀번호를 변경했습니다.'); });
+        }).catch(function (e) { er.textContent = '변경 실패: ' + ((e && (e.code || e.message)) || '오류'); btn.disabled = false; Cloud.me.sv = (readSession() || {}).sv; });
+        return;
+      }
       accRef(Cloud.me.id).get().then(function (s) {
         var a = s.data();
         return hashPw(cur, a.salt).then(function (h) {
@@ -1827,7 +2076,7 @@
     el.innerHTML = '<h2><span class="cdot ' + Cloud.state + (Cloud.warn ? ' warn' : '') + '"></span>저장소 연결 상태</h2>' +
       '<div class="wrap wrap-s"><table class="tbl kv"><tbody>' +
       '<tr><th>로그인 사용자</th><td>' + (Cloud.me ? esc(Cloud.me.name) + ' (<code>' + esc(Cloud.me.id) + '</code>) · ' + (isAdmin() ? '관리자' : '일반 사용자') + ' <button class="sm" id="cAcc">내 계정 · 비밀번호 변경</button>' : '로그인하지 않음') + '</td></tr>' +
-      '<tr><th>현재 저장소</th><td>' + esc(CLOUD_TXT[Cloud.state]) + (on ? ' — claude.ai 온라인 DB(PC·휴대폰 어디서나 같은 진도)' : '') + '</td></tr>' +
+      '<tr><th>현재 저장소</th><td>' + esc(CLOUD_TXT[Cloud.state]) + (on ? ' — ' + dbName() + '(PC·휴대폰 어디서나 같은 진도)' : '') + '</td></tr>' +
       '<tr><th>저장 위치</th><td>' + (on ? '<code>progress/' + esc(Cloud.me.id) + '</code> 진행 상황 · <code>mockbank/' + esc(Cloud.me.id) + '</code> 내가 입력한 모의고사 · <code>progress/' + esc(Cloud.me.id) + '/logs/날짜_기기</code> 학습기록' : '이 브라우저 localStorage') + '</td></tr>' +
       '<tr><th>이 기기 ID</th><td><code>' + esc(DEV) + '</code> (기록이 기기별로 나뉘어 저장되어 휴대폰·PC를 함께 써도 겹치지 않습니다)</td></tr>' +
       '<tr><th>마지막 저장 / 불러오기</th><td>' + (Cloud.lastSave ? hm(Cloud.lastSave) : '—') + ' / ' + (Cloud.lastLoad ? hm(Cloud.lastLoad) : '—') + '</td></tr>' +
@@ -1979,7 +2228,7 @@
     if (state === 'wait') h += '<div class="ex-t note"><span class="spin"></span>Claude가 해설을 쓰는 중입니다… (한 번 만들면 모든 사용자가 바로 봅니다)</div>';
     else if (state && state.err) h += '<div class="ex-t status err">해설을 만들지 못했습니다: ' + esc(state.err) + ' <button class="sm" data-exregen="' + q.id + '">다시 시도</button></div>';
     else if (rec) h += '<div class="ex-t">' + esc(rec.text) + '</div>' + (rec.by === 'ai' ? '<div class="ex-note">AI가 만든 해설입니다. 수치·법령은 정답과 현행 법령을 기준으로 확인하세요.</div>' : '');
-    else h += '<div class="ex-t note">아직 해설이 없습니다.' + (canGenEx() ? ' <button class="sm pri" data-exregen="' + q.id + '">💡 해설 만들기</button>' : ' (claude.ai 링크로 열면 자동으로 만들어집니다)') + '</div>';
+    else h += '<div class="ex-t note">아직 해설이 없습니다.' + (canGenEx() ? ' <button class="sm pri" data-exregen="' + q.id + '">💡 해설 만들기</button>' : (Cloud.mode === 'sb' ? ' (관리자가 해설을 만들면 여기에 보입니다)' : ' (claude.ai 링크로 열면 자동으로 만들어집니다)')) + '</div>';
     return h + '</div>';
   }
   /* box(빈 div) 안에 해설을 그린다. auto=true면 없을 때 바로 생성 */
@@ -2191,7 +2440,9 @@
       if (what === 'reset') {
         var np = prompt(a.id + ' 계정의 임시 비밀번호를 입력하세요. (다음 로그인 때 변경하게 됩니다)', '1234'); if (np == null) return;
         if (np.length < 4) { toast('비밀번호는 4자 이상이어야 합니다.'); return; }
-        p = pwFields(np).then(function (pf) { return ref.update({ salt: pf.salt, hash: pf.hash, mustChange: true, sv: (a.sv || 1) + 1 }); });
+        p = Cloud.mode === 'sb'
+          ? Cloud.sb.rpc('ise_admin_set_password', { p_user: id, p_pw: np }).then(sbRes).then(function () { return ref.update({ mustChange: true, sv: (a.sv || 1) + 1 }); })
+          : pwFields(np).then(function (pf) { return ref.update({ salt: pf.salt, hash: pf.hash, mustChange: true, sv: (a.sv || 1) + 1 }); });
         if (id === Cloud.me.id) p = p.then(function () { Cloud.me.sv = (a.sv || 1) + 1; writeSession({ id: id, sv: Cloud.me.sv, last: id }); setTimeout(function () { openPwModal(true); }, 200); });
         p = p.then(function () { toast(a.id + ' 비밀번호를 초기화했습니다. 로그인 중인 기기는 로그아웃됩니다.'); });
       } else if (what === 'role') {
@@ -2206,7 +2457,8 @@
         if (!confirm(a.id + ' 계정을 삭제할까요?\n진도·오답·학습기록·입력한 모의고사 문제도 모두 삭제되며 되돌릴 수 없습니다.')) return;
         if (prompt('확인을 위해 아이디(' + a.id + ')를 입력하세요.') !== a.id) { toast('아이디가 일치하지 않아 취소했습니다.'); return; }
         var pr = Cloud.db.doc('progress/' + id);
-        p = pr.collection('logs').limit(1000).get().then(function (qs) {
+        if (Cloud.mode === 'sb') p = Cloud.sb.rpc('ise_admin_delete_user', { p_user: id }).then(sbRes).then(function () { if (adminUI.sel === id) adminUI.sel = ''; toast(a.id + ' 계정을 삭제했습니다.'); });
+        else p = pr.collection('logs').limit(1000).get().then(function (qs) {
           return qs.docs.reduce(function (c, d) { return c.then(function () { return pr.collection('logs').doc(d.id).delete(); }); }, Promise.resolve());
         }).then(function () { return pr.delete(); }).then(function () { return Cloud.db.doc('mockbank/' + id).delete(); }).then(function () { return ref.delete(); })
           .then(function () { if (adminUI.sel === id) adminUI.sel = ''; toast(a.id + ' 계정을 삭제했습니다.'); });
@@ -2256,14 +2508,17 @@
       var btn = document.getElementById('nuAdd'); btn.disabled = true; st.className = 'status'; st.innerHTML = '<span class="spin"></span>만드는 중…';
       accRef(id).get().then(function (s) {
         if (s.exists) { st.className = 'status err'; st.textContent = '이미 있는 아이디입니다.'; return; }
-        return pwFields(pw).then(function (pf) {
-          return accRef(id).set({ id: id, name: nm || id, role: role, salt: pf.salt, hash: pf.hash, mustChange: true, disabled: false, sv: 1, createdAt: Date.now(), createdBy: Cloud.me.id });
-        }).then(function () {
+        var mk = Cloud.mode === 'sb'
+          ? sbCreateUser(id, pw).then(function () { return accRef(id).set({ id: id, name: nm || id, role: role, mustChange: true, disabled: false, pending: false, sv: 1, createdAt: Date.now(), createdBy: Cloud.me.id }); })
+          : pwFields(pw).then(function (pf) {
+            return accRef(id).set({ id: id, name: nm || id, role: role, salt: pf.salt, hash: pf.hash, mustChange: true, disabled: false, sv: 1, createdAt: Date.now(), createdBy: Cloud.me.id });
+          });
+        return mk.then(function () {
           st.className = 'status'; st.textContent = id + ' 계정을 만들었습니다. 임시 비밀번호: ' + pw;
           document.getElementById('nuId').value = ''; document.getElementById('nuName').value = '';
           return load();
         });
-      }).catch(function (e) { st.className = 'status err'; st.textContent = '실패: ' + ((e && e.code) || '오류'); cloudErr(e); })
+      }).catch(function (e) { st.className = 'status err'; st.textContent = e && e.code === 'exists' ? '이미 가입된 아이디입니다(로그인 정보가 남아 있음).' : '실패: ' + ((e && (e.message || e.code)) || '오류'); if (e && e.code !== 'exists') cloudErr(e); })
         .then(function () { btn.disabled = false; });
     });
     load();

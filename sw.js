@@ -1,9 +1,9 @@
 /* 오프라인 지원 서비스 워커 — 한 번 접속하면 인터넷 없이도 열립니다.
  * 내용을 수정해 다시 배포할 때는 CACHE 버전을 올려 주세요. */
-const CACHE = 'ise-pwa-v21';
+const CACHE = 'ise-pwa-v22';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
-  'assets/style.css', 'assets/app.js',
+  'assets/style.css', 'assets/app.js', 'assets/config.js', 'assets/vendor/supabase.js',
   'assets/icon-192.png', 'assets/icon-512.png', 'assets/icon-maskable-512.png', 'assets/apple-touch-icon.png',
   'data/00-core.js',
   'data/written-01.js', 'data/written-02.js', 'data/written-03.js', 'data/written-04.js', 'data/written-05.js', 'data/written-06.js', 'data/written-07.js',
