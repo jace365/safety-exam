@@ -1,6 +1,6 @@
 /* 오프라인 지원 서비스 워커 — 한 번 접속하면 인터넷 없이도 열립니다.
  * 내용을 수정해 다시 배포할 때는 CACHE 버전을 올려 주세요. */
-const CACHE = 'ise-pwa-v19';
+const CACHE = 'ise-pwa-v20';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/style.css', 'assets/app.js',

@@ -277,6 +277,7 @@
       Cloud.todayEv = td && Array.isArray(td.events) ? td.events.slice() : [];
       Cloud.state = 'on'; Cloud.warn = '';
       setCloud('on', '');
+      exLoad();
       hideGate(); drawNav('written'); route();
       res[0].push.forEach(function (k) { cloudWrite(k); });
       if (res[0].fresh) offerImport();
@@ -565,7 +566,7 @@
       '<td class="a"><div class="blankslot" id="bs-' + q.id + '"></div>' +
       (!extra ? '<div class="ans">' + ansHTML(q.a) + '</div>' : '') +
       '<div class="rowbtns">' + (extra ? '<button class="sm pri" data-grade="' + q.id + '">채점</button>' : '') +
-      spkBtnsHTML(q.id) + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) +
+      spkBtnsHTML(q.id) + exBtnHTML(q.id) + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) +
       (q.user ? '<button class="sm danger" data-del="' + q.id + '">삭제</button>' : '') + '</div>' +
       (extra ? '<div class="reveal-inline"></div>' : '') + '</td>';
     if (extra) {
@@ -578,7 +579,7 @@
   function fullRow(q) {
     return '<tr data-id="' + q.id + '"><td class="no">' + qNo(q) + '</td><td class="sj">' + iconFor(q.subject) + '<span class="subj-chip">' + esc(q.subject) + '</span></td>' +
       '<td class="q">' + esc(q.q) + '</td><td class="a"><div class="ans">' + ansHTML(q.a) + '</div><div class="hint-hide">클릭하면 정답이 보입니다</div>' +
-      '<div class="rowbtns">' + spkBtnsHTML(q.id) + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) + (q.user ? '<button class="sm danger" data-del="' + q.id + '">삭제</button>' : '') + '</div></td></tr>';
+      '<div class="rowbtns">' + spkBtnsHTML(q.id) + exBtnHTML(q.id) + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) + (q.user ? '<button class="sm danger" data-del="' + q.id + '">삭제</button>' : '') + '</div></td></tr>';
   }
   /* ───────── 메인 페이지: 오늘의 핵심 암기(필답형 1 + 작업형 1) ─────────
      메인(#written)에 들어올 때마다 새로 뽑는다. 최근에 보여 준 문항은 한동안 제외. */
@@ -597,7 +598,7 @@
     return '<article class="kc" data-id="' + q.id + '"><div class="kc-h"><span class="kc-type">' + TYPES[type] + '</span>' + iconFor(q.subject) +
       '<span class="kc-sub">' + esc(q.subject) + ' · No.' + qNo(q) + '</span></div>' +
       '<p class="kc-q">' + esc(q.q) + '</p><div class="kc-a">' + ansHTML(q.a) + '</div>' +
-      '<div class="kc-btns"><button class="sm pri spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊 듣기</button>' + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) +
+      '<div class="kc-btns"><button class="sm pri spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊 듣기</button>' + exBtnHTML(q.id) + bmBtnHTML(q.id, true) + wrBtnHTML(q.id) +
       '<button class="sm" data-kcnext="' + type + '" title="다른 핵심 내용 보기">다른 내용 ↻</button></div></article>';
   }
   function keyPanelHTML() {
@@ -692,7 +693,7 @@
       document.getElementById('tb').classList.toggle('hide', ui.hide);
     });
     document.getElementById('tbody').addEventListener('click', function (e) {
-      if (e.target.closest('[data-wr]')) return; // 전역 리스너가 처리
+      if (e.target.closest('[data-wr], [data-exbtn], .exwrap')) return; // 전역 리스너가 처리
       var g = e.target.closest('[data-grade]');
       if (g) {
         var gid = g.getAttribute('data-grade'), blanks = listRowBlanks[gid], q = findQ(gid);
@@ -704,6 +705,9 @@
         rv.className = 'reveal-inline ' + (all ? 'ok' : 'ng');
         rv.textContent = (all ? '정답입니다! ' : '오답이 있습니다. ') + okc + ' / ' + blanks.length + ' 빈칸' +
           (!all && !isWrong(gid) ? ' · ＋ 오답노트로 담아 두세요' : '');
+        var exw = g.closest('td.a').querySelector('.exwrap[data-exw="' + gid + '"]');
+        if (!exw) { exw = document.createElement('div'); exw.className = 'exwrap'; exw.setAttribute('data-exw', gid); g.closest('td.a').appendChild(exw); }
+        fillEx(exw, q, true);
         return;
       }
       var bm = e.target.closest('[data-bm]');
@@ -831,7 +835,7 @@
       var ab = buildAnswer(cur); $('mab').appendChild(ab.box);
       var saved = S.vals[cur.id];
       if (saved) ab.blanks.forEach(function (b, k) { b.inp.value = saved[k] || ''; });
-      function reveal() { $('mrv').innerHTML = '<div class="reveal"><b>정답</b>' + ansHTML(cur.a) + '</div>'; S.shown[cur.id] = true; }
+      function reveal() { $('mrv').innerHTML = '<div class="reveal"><b>정답</b>' + ansHTML(cur.a) + '</div>' + exWrapHTML(cur); fillEx($('mrv').querySelector('.exwrap'), cur, true); S.shown[cur.id] = true; }
       function showGrade(record) {
         var okc = gradeBlanks(cur, ab.blanks), all = okc === ab.blanks.length;
         ab.blanks.forEach(function (b) {
@@ -910,7 +914,7 @@
         '<div class="qact">' + (wrong.length ? '<button class="pri" id="rdNote">📝 틀린·미채점 ' + wrong.length + '문제 오답노트에 담기</button><button id="rdRetry">🔁 틀린 문제만 다시</button>' : '') +
         '<button id="rdAgain">↺ 처음부터 다시</button><button id="rdTable">📋 표로 보기</button></div>' +
         (wrong.length ? '<h2 class="sub">다시 볼 문제</h2>' + wrong.map(function (q) {
-          return '<div class="mwrong"><div class="mw-q"><span class="mono">' + qNo(q) + '</span> <span class="' + (res(q.id) === 'x' ? 'ngc' : 'note') + '">' + (res(q.id) === 'x' ? '틀림' : '미채점') + '</span> ' + esc(q.q) + '</div><div class="reveal">' + ansHTML(q.a) + '</div></div>';
+          return '<div class="mwrong"><div class="mw-q"><span class="mono">' + qNo(q) + '</span> <span class="' + (res(q.id) === 'x' ? 'ngc' : 'note') + '">' + (res(q.id) === 'x' ? '틀림' : '미채점') + '</span> ' + esc(q.q) + '</div><div class="reveal">' + ansHTML(q.a) + '</div>' + (exOf(q) ? '<div class="exwrap" data-exw="' + q.id + '">' + exBoxHTML(q, exOf(q)) + '</div>' : '<div class="rowbtns">' + exBtnHTML(q.id) + '</div>') + '</div>';
         }).join('') : '<p class="banner ok">모두 맞혔습니다!</p>') +
         '</div></div>';
       if ($('rdNote')) $('rdNote').addEventListener('click', function () {
@@ -986,7 +990,7 @@
     }
     function mkHTML(q, r) {
       return '<div class="mk"><button class="o' + (r === 'o' ? ' on' : '') + '" data-mk="o">맞음</button><button class="x' + (r === 'x' ? ' on' : '') + '" data-mk="x">틀림</button>' +
-        '<button class="spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊</button>' + bmBtnHTML(q.id, false) + wrBtnHTML(q.id, true) +
+        '<button class="spk" data-spk="' + q.id + ':qa" title="문제·정답 듣기">🔊</button>' + exBtnHTML(q.id) + bmBtnHTML(q.id, false) + wrBtnHTML(q.id, true) +
         (q.umock ? '<button class="sm" data-medit="' + q.id + '" title="내가 입력한 문제 수정">✎</button><button class="sm danger" data-mdel="' + q.id + '" title="삭제">✕</button>' : '') + '</div>';
     }
     function row(q, i) {
@@ -1072,7 +1076,7 @@
       save(); viewMock();
     });
     document.getElementById('tbody').addEventListener('click', function (e) {
-      if (e.target.closest('[data-wr]')) return; // 전역 리스너가 처리
+      if (e.target.closest('[data-wr], [data-exbtn], .exwrap')) return; // 전역 리스너가 처리
       var bm = e.target.closest('[data-bm]');
       if (bm) { toggleBM(bm.getAttribute('data-bm')); bm.outerHTML = bmBtnHTML(bm.getAttribute('data-bm'), false); drawNav('bookmarks'); return; }
       var ed = e.target.closest('[data-medit]');
@@ -1636,7 +1640,8 @@
       card.querySelector('#bbm').addEventListener('click', function () { toggleBM(q.id); flagBM(); drawNav(mode); });
 
       function reveal() {
-        card.querySelector('#rv').innerHTML = '<div class="reveal"><b>정답</b>' + ansHTML(q.a) + '</div>';
+        card.querySelector('#rv').innerHTML = '<div class="reveal"><b>정답</b>' + ansHTML(q.a) + '</div>' + exWrapHTML(q);
+        fillEx(card.querySelector('#rv .exwrap'), q, true);
       }
       card.querySelector('#bg').addEventListener('click', function () {
         var okc = gradeBlanks(q, ab.blanks), all = okc === ab.blanks.length;
@@ -1805,6 +1810,159 @@
     });
   }
 
+  /* ───────── 해설 ─────────
+     우선순위: ① 데이터 파일의 q.ex(EXDATA)  ② 온라인 DB explain/<문제id>(모든 사용자 공유)  ③ 없으면 Claude가 만들어 ②에 저장
+     정답이 표시될 때(퀴즈·오답노트·모의고사 퀴즈) 자동으로 보이고, 목록·표·북마크·핵심 암기에서는 💡 해설 버튼으로 연다.
+     DB가 없으면(파일로 열기) localStorage 'ise.ex'에 저장하고, 생성은 문제생성 설정의 API 키로 한다. */
+  var EX = {}, exPending = {}, EXLKEY = 'ise.ex';
+  try { EX = JSON.parse(localStorage.getItem(EXLKEY) || '{}') || {}; } catch (e) { EX = {}; }
+  var EX_SYS = '너는 한국 산업안전기사 실기 시험 전문 강사다. 수험생이 정답을 확인한 직후 읽을 해설을 쓴다.\n' +
+    '규칙: ① 주어진 정답을 기준으로 설명하고 정답의 수치·용어를 절대 바꾸지 않는다. ② 왜 그런 답이 되는지(원리·목적·위험)를 2~4문장으로 쉽게 설명한다. ' +
+    '③ 근거 법령(산업안전보건법·시행령·시행규칙·산업안전보건기준에 관한 규칙·고시 등)은 확실한 경우에만 이름 수준으로 쓰고, 조문 번호는 확실하지 않으면 쓰지 않는다. ' +
+    '④ 계산 문제는 공식의 의미와 단위를 짚는다. ⑤ 마지막 줄에 "암기 팁:"으로 시작하는 한 줄을 붙인다(앞글자 따기·연상 등). ' +
+    '⑥ 마크다운 기호(**, #, -)와 서론·인사말은 쓰지 않는다. 한국어 존댓말 평서문.';
+  function exPlainA(a) { return String(a).replace(/\{\{([^}]+)\}\}/g, function (m, g) { return g.split('|')[0].trim(); }); }
+  function exOf(q) { if (!q) return null; if (q.ex) return { text: q.ex, by: 'data' }; return EX[q.id] || null; }
+  function canGenEx() { return !!(Cloud.sample || store.settings.apiKey); }
+  function askClaude(prompt, json) {
+    if (Cloud.sample) return (json ? Cloud.sample.json(prompt, { modelTier: 'default' }) : Cloud.sample(prompt, { modelTier: 'default' }).then(function (r) { return r.text; }));
+    if (!store.settings.apiKey) return Promise.reject({ message: 'Claude 연결이 없습니다(claude.ai 링크로 열거나 문제생성 설정에 API 키 입력).' });
+    return fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': store.settings.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: store.settings.model, max_tokens: json ? 4000 : 900, messages: [{ role: 'user', content: prompt }] })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.error) throw { message: j.error.message };
+      var t = (j.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('\n').trim();
+      return json ? JSON.parse(t.replace(/^```(json)?|```$/g, '').trim()) : t;
+    });
+  }
+  function exClean(t) { return String(t || '').replace(/\*\*/g, '').replace(/^#+\s*/gm, '').replace(/^해설\s*[:：]\s*/, '').trim(); }
+  function exSave(id, rec) {
+    rec.at = Date.now(); EX[id] = rec;
+    if (Cloud.state === 'on' && Cloud.db) return retrying(function () { return Cloud.db.doc('explain/' + id).set(Object.assign({ id: id }, rec)); }).catch(function (e) { cloudErr(e); });
+    try { localStorage.setItem(EXLKEY, JSON.stringify(EX)); } catch (e) {}
+    return Promise.resolve();
+  }
+  function exPrompt(q) {
+    return EX_SYS + '\n\n[유형] ' + TYPES[q.type] + ' / ' + q.subject + '\n[문제] ' + q.q + '\n[정답]\n' + exPlainA(q.a) + '\n\n해설만 출력하라.';
+  }
+  function genEx(q, force) {
+    if (!force && exOf(q)) return Promise.resolve(exOf(q));
+    if (exPending[q.id]) return exPending[q.id];
+    exPending[q.id] = Promise.resolve().then(function () { return askClaude(exPrompt(q)); }).then(function (t) {
+      t = exClean(t); if (!t) throw { message: '빈 해설이 반환되었습니다.' };
+      var rec = { text: t, by: 'ai', uid: Cloud.me ? Cloud.me.id : '' };
+      return exSave(q.id, rec).then(function () { return rec; });
+    }).then(function (r) { delete exPending[q.id]; return r; }, function (e) { delete exPending[q.id]; throw e; });
+    return exPending[q.id];
+  }
+  function exBoxHTML(q, rec, state) {
+    var h = '<div class="exbox" data-ex="' + q.id + '"><div class="ex-h"><b>💡 해설</b>' +
+      (rec ? (rec.by === 'ai' ? '<span class="ex-tag">AI 해설</span>' : rec.by === 'data' ? '' : '<span class="ex-tag ed">' + esc(rec.uid || '관리자') + ' 작성</span>') : '') +
+      (rec ? '<button class="sm spk" data-spkex="' + q.id + '" title="해설 듣기">🔊</button>' : '') +
+      (isAdmin() || Cloud.state !== 'on' ? '<span class="ex-act">' + (rec && rec.by !== 'data' || !rec ? '<button class="sm" data-exedit="' + q.id + '">✎ ' + (rec ? '수정' : '직접 작성') + '</button>' : '') +
+        (canGenEx() && rec && rec.by !== 'data' ? '<button class="sm" data-exregen="' + q.id + '">↻ 다시 생성</button>' : '') + '</span>' : '') + '</div>';
+    if (state === 'wait') h += '<div class="ex-t note"><span class="spin"></span>Claude가 해설을 쓰는 중입니다… (한 번 만들면 모든 사용자가 바로 봅니다)</div>';
+    else if (state && state.err) h += '<div class="ex-t status err">해설을 만들지 못했습니다: ' + esc(state.err) + ' <button class="sm" data-exregen="' + q.id + '">다시 시도</button></div>';
+    else if (rec) h += '<div class="ex-t">' + esc(rec.text) + '</div>' + (rec.by === 'ai' ? '<div class="ex-note">AI가 만든 해설입니다. 수치·법령은 정답과 현행 법령을 기준으로 확인하세요.</div>' : '');
+    else h += '<div class="ex-t note">아직 해설이 없습니다.' + (canGenEx() ? ' <button class="sm pri" data-exregen="' + q.id + '">💡 해설 만들기</button>' : ' (claude.ai 링크로 열면 자동으로 만들어집니다)') + '</div>';
+    return h + '</div>';
+  }
+  /* box(빈 div) 안에 해설을 그린다. auto=true면 없을 때 바로 생성 */
+  function fillEx(box, q, auto) {
+    if (!box || !q) return;
+    var rec = exOf(q);
+    if (rec || !auto || !canGenEx()) { box.innerHTML = exBoxHTML(q, rec); return; }
+    box.innerHTML = exBoxHTML(q, null, 'wait');
+    genEx(q).then(function (r) { if (box.isConnected) box.innerHTML = exBoxHTML(q, r); refreshEx(q.id); },
+      function (e) { if (box.isConnected) box.innerHTML = exBoxHTML(q, null, { err: (e && (e.message || e.code)) || '오류' }); });
+  }
+  function refreshEx(id) {
+    var q = findQ(id); if (!q) return;
+    Array.prototype.forEach.call(document.querySelectorAll('.exwrap[data-exw="' + id + '"]'), function (w) { if (!w.querySelector('.ex-t .spin')) w.innerHTML = exBoxHTML(q, exOf(q)); });
+  }
+  function exWrapHTML(q) { return '<div class="exwrap" data-exw="' + q.id + '"></div>'; }
+  function exBtnHTML(id) { return '<button class="sm exb" data-exbtn="' + id + '" title="해설 보기">💡 해설</button>'; }
+  /* 💡 해설 버튼(목록·표·북마크·핵심 암기): 버튼이 속한 행/카드 안에 해설 상자를 열고 닫는다 */
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-exbtn]');
+    if (b) {
+      var id = b.getAttribute('data-exbtn'), q = findQ(id); if (!q) return;
+      var host = b.closest('td.a, .kc, .mwrong, .qcard, .fp') || b.parentNode;
+      var w = host.querySelector('.exwrap[data-exw="' + id + '"]');
+      if (w) { w.remove(); b.classList.remove('on'); return; }
+      w = document.createElement('div'); w.className = 'exwrap'; w.setAttribute('data-exw', id);
+      host.appendChild(w); b.classList.add('on'); fillEx(w, q, true); return;
+    }
+    var r = e.target.closest('[data-exregen]');
+    if (r) {
+      var q2 = findQ(r.getAttribute('data-exregen')), w2 = r.closest('.exwrap'); if (!q2 || !w2) return;
+      if (exOf(q2) && !confirm('해설을 새로 만들까요? 지금 해설은 바뀝니다.')) return;
+      w2.innerHTML = exBoxHTML(q2, null, 'wait');
+      genEx(q2, true).then(function () { refreshEx(q2.id); }, function (er) { w2.innerHTML = exBoxHTML(q2, null, { err: (er && (er.message || er.code)) || '오류' }); });
+      return;
+    }
+    var ed = e.target.closest('[data-exedit]');
+    if (ed) {
+      var q3 = findQ(ed.getAttribute('data-exedit')); if (!q3) return;
+      var cur = exOf(q3);
+      var m = openModal('<h2>💡 해설 ' + (cur ? '수정' : '직접 작성') + '</h2><p class="note">' + esc(qNo(q3) + ' ' + q3.q.slice(0, 80)) + '</p>' +
+        '<div class="field"><label for="exT">해설 (마지막 줄에 "암기 팁:"을 쓰면 좋습니다)</label><textarea id="exT" rows="9">' + esc(cur ? cur.text : '') + '</textarea></div>' +
+        '<div class="row"><button class="pri" id="exOk">저장</button><button data-close>취소</button><span class="note">' + (Cloud.state === 'on' ? '저장하면 모든 사용자에게 보입니다.' : '이 브라우저에 저장됩니다.') + '</span></div>');
+      m.querySelector('#exT').focus();
+      m.querySelector('#exOk').addEventListener('click', function () {
+        var t = m.querySelector('#exT').value.trim(); if (!t) { toast('해설을 입력하세요.'); return; }
+        exSave(q3.id, { text: t, by: 'user', uid: Cloud.me ? Cloud.me.id : '' }).then(function () { closeModal(); refreshEx(q3.id); toast('해설을 저장했습니다.'); });
+      });
+      return;
+    }
+    var sp = e.target.closest('[data-spkex]');
+    if (sp) {
+      var q4 = findQ(sp.getAttribute('data-spkex')), rc = exOf(q4); if (!rc) return;
+      if (sp.classList.contains('playing')) { stopSpeak(); return; }
+      speakQ({ id: q4.id + '_ex', q: '해설', a: rc.text }, 'a', null, null, sp);
+    }
+  });
+  /* 온라인 DB의 해설 전체를 읽고 이후 변경을 실시간 반영(문항 수백 개 수준이라 한 번에 읽는다) */
+  var exUnsub = null;
+  function exLoad() {
+    if (!Cloud.db || exUnsub) return;
+    try { exUnsub = Cloud.db.collection('explain').onSnapshot(function (qs) {
+      qs.docChanges().forEach(function (c) {
+        var d = c.doc.data ? c.doc.data() : null;
+        if (c.type === 'removed') delete EX[c.doc.id]; else if (d && d.text) EX[c.doc.id] = { text: d.text, by: d.by, uid: d.uid, at: d.at };
+        if (c.type !== 'added') refreshEx(c.doc.id);
+      });
+    }, function () { exUnsub = null; }); } catch (e) { exUnsub = null; }
+  }
+  /* 관리자: 해설이 없는 문항을 8개씩 묶어 일괄 생성 */
+  var exBulk = { run: false };
+  function exAllQs() { return getList('written').concat(getList('practical'), mockAll(), mockPAll()); }
+  function exBulkRun(onProg) {
+    var todo = exAllQs().filter(function (q) { return !exOf(q); });
+    exBulk.run = true; var done = 0, fail = 0, total = todo.length;
+    function step() {
+      if (!exBulk.run || !todo.length) { exBulk.run = false; onProg(done, fail, total, true); return; }
+      var part = todo.splice(0, 8);
+      var prompt = EX_SYS + '\n\n아래 문항 각각의 해설을 써라. 출력은 JSON 배열만: [{"id":"문항 id","ex":"해설 전체(암기 팁 줄 포함, 줄바꿈은 \\n)"}]\n\n' +
+        JSON.stringify(part.map(function (q) { return { id: q.id, type: TYPES[q.type], subject: q.subject, q: q.q, a: exPlainA(q.a) }; }));
+      Promise.resolve().then(function () { return askClaude(prompt, true); }).then(function (arr) {
+        if (!Array.isArray(arr)) throw { message: '형식 오류' };
+        var saves = [];
+        part.forEach(function (q) {
+          var hit = arr.filter(function (x) { return x && x.id === q.id && x.ex; })[0];
+          if (hit) { done++; saves.push(exSave(q.id, { text: exClean(hit.ex), by: 'ai', uid: Cloud.me ? Cloud.me.id : '' })); } else fail++;
+        });
+        return Promise.all(saves);
+      }).catch(function (e) {
+        fail += part.length;
+        if (e && e.code === 'rate_limited') { exBulk.run = false; toast('요청이 많아 잠시 멈췄습니다. 몇 분 뒤 다시 누르세요.'); }
+        if (e && e.code === 'not_granted') exBulk.run = false;
+      }).then(function () { onProg(done, fail, total, false); setTimeout(step, 400); });
+    }
+    onProg(0, 0, total, false); step();
+  }
+
   /* ───────── 사용자 관리(관리자 전용) ─────────
      accounts·progress 컬렉션을 읽어 사용자별 진도표를 만든다. 계정 추가·비밀번호 초기화·사용 중지·권한 변경·삭제. */
   var adminUI = { sel: '' };
@@ -1837,6 +1995,9 @@
       '<div class="field"><label for="nuPw">임시 비밀번호</label><input type="text" id="nuPw" value="1234"></div>' +
       '<div class="field"><label for="nuRole">권한</label><select id="nuRole"><option value="user">일반 사용자</option><option value="admin">관리자</option></select></div>' +
       '</div><div class="row"><button class="pri" id="nuAdd">사용자 만들기</button><span class="status" id="nuSt"></span><span class="note">첫 로그인 때 사용자가 직접 비밀번호를 바꾸게 됩니다.</span></div></section>' +
+      '<section class="card"><h2><span class="n">💡</span>해설 관리</h2><div class="stat" id="exStat"></div>' +
+      '<div class="row"><button class="pri" id="exGo">없는 해설 일괄 생성</button><button id="exStop" hidden>멈춤</button><button id="exExp">해설 내보내기(JSON)</button><span class="status" id="exSt"></span></div>' +
+      '<p class="note">해설이 없는 문항을 8개씩 묶어 Claude가 만들고 온라인 DB에 저장합니다(한 번 만들면 모든 사용자가 바로 봅니다). 문항이 많으면 수십 분 걸리며, 화면을 닫으면 멈추고 다음에 이어서 만듭니다. 각 해설 상자의 ✎ 수정으로 고칠 수 있습니다.</p></section>' +
       '<h2 class="sub">사용자별 진도 <button class="sm" id="aRef" style="margin-left:auto">↻ 새로고침</button></h2>' +
       '<div class="wrap wrap-s"><table class="tbl sum utbl"><thead><tr><th>사용자</th><th>권한·상태</th><th>마지막 접속·학습</th><th>퀴즈 필답형</th><th>퀴즈 작업형</th><th>오답노트</th><th>모의고사 채점</th><th>최근 7일</th><th>최근 모의 점수</th><th>관리</th></tr></thead><tbody id="ubody"><tr><td colspan="10" class="empty">불러오는 중…</td></tr></tbody></table></div>' +
       '<div id="udetail"></div>';
@@ -1938,6 +2099,28 @@
       act(b.closest('tr').getAttribute('data-u'), b.getAttribute('data-act'));
     });
     document.getElementById('aRef').addEventListener('click', function () { load().then(function () { toast('최신 진도로 새로고침했습니다.'); }); });
+    function exStat() {
+      var all = exAllQs(), has = all.filter(function (q) { return exOf(q); }).length, ai = all.filter(function (q) { var r = exOf(q); return r && r.by === 'ai'; }).length;
+      var el = document.getElementById('exStat');
+      if (el) el.innerHTML = '전체 문항 <b>' + all.length + '</b> · 해설 있음 <b>' + has + '</b> (AI ' + ai + ' · 직접 작성 ' + (has - ai) + ') · 없음 <b>' + (all.length - has) + '</b>';
+    }
+    exStat();
+    document.getElementById('exGo').addEventListener('click', function () {
+      if (!canGenEx()) { toast('Claude 연결이 없어 해설을 만들 수 없습니다.'); return; }
+      var go = document.getElementById('exGo'), stop = document.getElementById('exStop'), st = document.getElementById('exSt');
+      go.disabled = true; stop.hidden = false;
+      exBulkRun(function (d, f, t, end) {
+        if (!document.getElementById('exSt')) { exBulk.run = false; return; }
+        st.innerHTML = (end ? '' : '<span class="spin"></span>') + '생성 ' + d + ' / ' + t + (f ? ' · 실패 ' + f : '') + (end ? ' — 끝' : '');
+        exStat();
+        if (end) { go.disabled = false; stop.hidden = true; toast('해설 일괄 생성을 마쳤습니다. (' + d + '개)'); }
+      });
+    });
+    document.getElementById('exStop').addEventListener('click', function () { exBulk.run = false; document.getElementById('exSt').textContent = '지금 묶음이 끝나면 멈춥니다…'; });
+    document.getElementById('exExp').addEventListener('click', function () {
+      var out = {}; exAllQs().forEach(function (q) { var r = exOf(q); if (r && r.by !== 'data') out[q.id] = { q: q.q, ex: r.text, by: r.by }; });
+      saveFile('safety-exam-explain-' + dateKey() + '.json', JSON.stringify(out, null, 2), 'application/json');
+    });
     document.getElementById('nuAdd').addEventListener('click', function () {
       var id = document.getElementById('nuId').value.trim().toLowerCase(), nm = document.getElementById('nuName').value.trim(),
         pw = document.getElementById('nuPw').value, role = document.getElementById('nuRole').value, st = document.getElementById('nuSt');
@@ -1992,7 +2175,7 @@
       return '<tr data-id="' + q.id + '"><td class="no">' + qNo(q) + '</td>' +
         '<td class="sj">' + iconFor(q.subject) + '<span class="subj-chip">' + esc(kindLabel(q)) + '</span><br><span class="meta" style="font-size:12px">' + esc(q.subject) + '</span></td>' +
         '<td class="q">' + esc(q.q) + '</td><td class="a"><div class="ans">' + ansHTML(q.a) + '</div>' +
-        '<div class="rowbtns"><button class="sm" data-float="' + q.id + '">📌 고정 보기</button>' + spkBtnsHTML(q.id) + wrBtnHTML(q.id) + '<button class="sm danger" data-bm="' + q.id + '">해제</button></div></td></tr>';
+        '<div class="rowbtns"><button class="sm" data-float="' + q.id + '">📌 고정 보기</button>' + spkBtnsHTML(q.id) + exBtnHTML(q.id) + wrBtnHTML(q.id) + '<button class="sm danger" data-bm="' + q.id + '">해제</button></div></td></tr>';
     }
     var visibleIds = [];
     function draw() {

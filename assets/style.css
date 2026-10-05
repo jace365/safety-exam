@@ -449,3 +449,19 @@ body.gated{overflow:hidden}
   .utbl td{display:block}
   .abtns button{min-height:36px}
 }
+
+/* ───────── 해설 ───────── */
+.exbox{margin-top:10px;border:2px solid var(--blue);background:#eef4fb;padding:8px 12px 10px;line-height:1.75;white-space:normal}
+.ex-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:4px}
+.ex-h b{color:var(--blue);font-size:13px}
+.ex-h .spk{min-height:26px;padding:0 6px;font-size:12px}
+.ex-tag{font-size:10.5px;font-weight:800;background:var(--blue);color:#fff;padding:0 5px;border-radius:2px}
+.ex-tag.ed{background:var(--green)}
+.ex-act{margin-left:auto;display:flex;gap:4px}
+.ex-act button{min-height:26px;padding:0 8px;font-size:12px}
+.ex-t{white-space:pre-wrap;font-size:14.5px;color:var(--ink)}
+.ex-note{font-size:11.5px;color:var(--muted);margin-top:4px}
+button.exb{border-color:var(--blue);color:var(--blue)}
+button.exb.on{background:var(--blue);color:#fff}
+.list.hide tr:not(.shown) .exwrap{display:none}
+@media (max-width:860px){.ex-t{font-size:14px}.ex-act{margin-left:0}}
