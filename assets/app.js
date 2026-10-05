@@ -97,6 +97,7 @@
     if (dot) { dot.className = 'cdot ' + Cloud.state + (Cloud.warn ? ' warn' : ''); dot.title = CLOUD_TXT[Cloud.state]; }
     var chip = document.getElementById('userChip');
     if (chip) { chip.hidden = !Cloud.me; if (Cloud.me) chip.innerHTML = '<span class="uav">' + esc((Cloud.me.name || Cloud.me.id).slice(0, 1)) + '</span><span class="unm">' + esc(Cloud.me.name || Cloud.me.id) + (isAdmin() ? ' <i>관리자</i>' : '') + '</span>'; }
+    drawAuthBar();
     if (typeof drawCloudBox === 'function' && document.getElementById('cbox')) drawCloudBox();
   }
   function progPayload() {
@@ -207,27 +208,52 @@
   function readSession() { try { return JSON.parse(localStorage.getItem(SESSKEY) || 'null'); } catch (e) { return null; } }
   function writeSession(o) { try { if (o) localStorage.setItem(SESSKEY, JSON.stringify(o)); else localStorage.removeItem(SESSKEY); } catch (e) {} }
 
-  /* ── 로그인 화면 ── */
+  /* ── 로그인 · 회원가입 화면 ──
+     config/app 문서 { allowSignup:true(기본), approval:false(기본) } — 관리자 화면에서 바꾼다 */
+  var gateTab = 'login';
+  function cfg() { return Object.assign({ allowSignup: true, approval: false }, Cloud.cfg || {}); }
+  function loadCfg() {
+    if (!Cloud.db) return Promise.resolve();
+    return Cloud.db.doc('config/app').get().then(function (s) { Cloud.cfg = s.exists ? s.data() : null; }, function () {});
+  }
   function gateHTML(mode) {
+    var c = cfg(), su = gateTab === 'signup' && c.allowSignup;
     return '<div class="gate-box"><div class="hazard"></div><div class="gate-in">' +
       '<div class="brand"><div class="brand-mark" aria-hidden="true">!</div><div><div class="brand-title">산업안전기사 실기</div><div class="brand-sub" style="display:block">사용자 로그인 · 온라인 진도 관리</div></div></div>' +
       (mode === 'wait' ? '<p class="gate-msg"><span class="spin"></span>온라인 DB에 연결하는 중…</p>' :
        mode === 'nodb' ? '<p class="gate-msg err">온라인 DB를 쓸 수 없습니다. Claude에 로그인한 상태로 이 링크를 열어 주세요.<br>(' + esc(Cloud.msg || '') + ')</p><button id="gGuest">로그인 없이 이 기기에서만 사용</button>' :
-       '<form id="gForm" autocomplete="on" onsubmit="return false">' +
-       '<div class="field"><label for="gId">아이디</label><input type="text" id="gId" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="아이디"></div>' +
-       '<div class="field"><label for="gPw">비밀번호</label><input type="password" id="gPw" autocomplete="current-password" placeholder="비밀번호"></div>' +
-       '<p class="status err" id="gErr"></p>' +
-       '<button class="pri" id="gLogin" type="submit">로그인</button></form>' +
-       '<p class="note">계정은 관리자가 만들어 줍니다. 처음 설치했다면 관리자 <b>admin / admin</b>으로 로그인한 뒤 바로 비밀번호를 바꾸세요.</p>') +
+       (c.allowSignup ? '<div class="gate-tabs" role="tablist"><button data-gt="login" class="' + (su ? '' : 'on') + '" role="tab">로그인</button><button data-gt="signup" class="' + (su ? 'on' : '') + '" role="tab">회원가입</button></div>' : '') +
+       (su ?
+        '<form id="gForm" autocomplete="on" onsubmit="return false">' +
+        '<div class="field"><label for="sId">아이디 (영문 소문자·숫자·_ . - 3~20자)</label><input type="text" id="sId" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="예) seokun"></div>' +
+        '<div class="field"><label for="sName">이름(화면에 표시)</label><input type="text" id="sName" placeholder="예) 임석운"></div>' +
+        '<div class="field"><label for="sPw">비밀번호 (4자 이상)</label><input type="password" id="sPw" autocomplete="new-password"></div>' +
+        '<div class="field"><label for="sPw2">비밀번호 확인</label><input type="password" id="sPw2" autocomplete="new-password"></div>' +
+        '<p class="status err" id="gErr"></p>' +
+        '<button class="pri" id="gSign" type="submit">가입하기</button></form>' +
+        '<p class="note">' + (c.approval ? '가입 후 <b>관리자 승인</b>이 끝나면 로그인할 수 있습니다.' : '가입하면 바로 로그인됩니다.') + ' 다른 사이트에서 쓰는 비밀번호는 쓰지 마세요.</p>'
+        :
+        '<form id="gForm" autocomplete="on" onsubmit="return false">' +
+        '<div class="field"><label for="gId">아이디</label><input type="text" id="gId" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="아이디"></div>' +
+        '<div class="field"><label for="gPw">비밀번호</label><input type="password" id="gPw" autocomplete="current-password" placeholder="비밀번호"></div>' +
+        '<p class="status err" id="gErr"></p>' +
+        '<button class="pri" id="gLogin" type="submit">로그인</button></form>' +
+        (c.allowSignup ? '<button class="gate-link" data-gt="signup">계정이 없나요? 회원가입 →</button>' : '<p class="note">계정은 관리자가 만들어 줍니다.</p>') +
+        '<p class="note">처음 설치했다면 관리자 <b>admin / admin</b>으로 로그인한 뒤 바로 비밀번호를 바꾸세요.</p>') +
+       (Cloud.db ? '<button class="gate-link" id="gGuest2">로그인하지 않고 둘러보기(이 기기에만 저장)</button>' : '')) +
       '</div></div>';
   }
   function showGate(mode) {
     var g = document.getElementById('gate');
     if (!g) { g = document.createElement('div'); g.id = 'gate'; document.body.appendChild(g); }
     g.innerHTML = gateHTML(mode); g.hidden = false; document.body.classList.add('gated');
+    Array.prototype.forEach.call(g.querySelectorAll('[data-gt]'), function (b) {
+      b.addEventListener('click', function () { gateTab = b.getAttribute('data-gt'); showGate(mode); });
+    });
+    var er = document.getElementById('gErr');
     var gl = document.getElementById('gLogin');
     if (gl) {
-      var idI = document.getElementById('gId'), pwI = document.getElementById('gPw'), er = document.getElementById('gErr');
+      var idI = document.getElementById('gId'), pwI = document.getElementById('gPw');
       var last = (readSession() || {}).last; if (last) idI.value = last;
       (idI.value ? pwI : idI).focus();
       gl.addEventListener('click', function () {
@@ -237,9 +263,73 @@
         login(id, pw).then(function (msg) { if (msg) { er.textContent = msg; gl.disabled = false; gl.textContent = '로그인'; pwI.select(); } });
       });
     }
-    var gg = document.getElementById('gGuest');
-    if (gg) gg.addEventListener('click', function () { hideGate(); setCloud('local', '로그인 없이 이 브라우저에만 저장합니다.'); });
+    var gs = document.getElementById('gSign');
+    if (gs) {
+      document.getElementById('sId').focus();
+      gs.addEventListener('click', function () {
+        var id = document.getElementById('sId').value.trim().toLowerCase(), nm = document.getElementById('sName').value.trim(),
+          pw = document.getElementById('sPw').value, pw2 = document.getElementById('sPw2').value;
+        if (!ID_RE.test(id)) { er.textContent = '아이디는 영문 소문자·숫자·_ . - 3~20자로 입력하세요.'; return; }
+        if (!nm) { er.textContent = '이름을 입력하세요.'; return; }
+        if (pw.length < 4) { er.textContent = '비밀번호는 4자 이상이어야 합니다.'; return; }
+        if (pw !== pw2) { er.textContent = '비밀번호 확인이 일치하지 않습니다.'; return; }
+        gs.disabled = true; er.textContent = ''; gs.innerHTML = '<span class="spin"></span>가입 중';
+        signup(id, nm, pw).then(function (msg) {
+          if (msg) { er.textContent = msg; gs.disabled = false; gs.textContent = '가입하기'; }
+        });
+      });
+    }
+    function guest() { hideGate(); setCloud('local', '로그인 없이 이 브라우저에만 저장합니다.'); }
+    var gg = document.getElementById('gGuest'); if (gg) gg.addEventListener('click', guest);
+    var gg2 = document.getElementById('gGuest2'); if (gg2) gg2.addEventListener('click', guest);
   }
+  function signup(id, name, pw) {
+    return loadCfg().then(function () {
+      var c = cfg();
+      if (!c.allowSignup) return '지금은 회원가입이 닫혀 있습니다. 관리자에게 계정을 요청하세요.';
+      return accRef(id).get().then(function (s) {
+        if (s.exists) return '이미 사용 중인 아이디입니다.';
+        return pwFields(pw).then(function (pf) {
+          return retrying(function () {
+            return accRef(id).set({ id: id, name: name, role: 'user', salt: pf.salt, hash: pf.hash, mustChange: false, disabled: false, pending: !!c.approval, sv: 1, createdAt: Date.now(), createdBy: 'self' });
+          });
+        }).then(function () {
+          if (c.approval) { gateTab = 'login'; showGate('login'); var e = document.getElementById('gErr'); if (e) { e.className = 'status'; e.textContent = '가입 신청이 접수되었습니다. 관리자가 승인하면 로그인할 수 있습니다.'; } var gi = document.getElementById('gId'); if (gi) gi.value = id; return ''; }
+          gateTab = 'login';
+          return login(id, pw).then(function (m) { if (!m) toast('가입을 환영합니다! ' + name + '님 계정으로 로그인했습니다.'); return m; });
+        });
+      });
+    }).catch(function (e) { return '가입 실패: ' + ((e && (e.code || e.message)) || '오류') + (e && e.code === 'invalid_argument' ? ' — 이 Claude 계정에 사이트 쓰기 권한이 없습니다.' : ''); });
+  }
+  /* ── 로그인 상태 막대(모든 화면 맨 위) ── */
+  function drawAuthBar() {
+    var b = document.getElementById('authBar'); if (!b) return;
+    if (Cloud.me) {
+      b.className = 'authbar in';
+      b.innerHTML = '<span class="ab-st"><span class="cdot ' + Cloud.state + (Cloud.warn ? ' warn' : '') + '"></span>로그인 중 · <b>' + esc(Cloud.me.name) + '</b> <span class="mono">(' + esc(Cloud.me.id) + ')</span></span>' +
+        '<span class="ab-role' + (isAdmin() ? ' adm' : '') + '">' + (isAdmin() ? '관리자' : '사용자') + '</span>' +
+        '<span class="ab-db">' + (Cloud.warn ? '⚠ ' + esc(Cloud.warn) : '☁ 온라인 DB 저장' + (Cloud.lastSave ? ' · ' + hm(Cloud.lastSave) : '')) + '</span>' +
+        '<span class="ab-btns"><button class="sm" data-ab="acc">내 계정</button><button class="sm danger" data-ab="out">로그아웃</button></span>';
+    } else if (Cloud.state === 'wait' || Cloud.state === 'login') {
+      b.className = 'authbar out';
+      b.innerHTML = '<span class="ab-st"><span class="cdot ' + Cloud.state + '"></span>' + (Cloud.state === 'wait' ? '연결 중…' : '로그인하지 않았습니다') + '</span>' +
+        (Cloud.state === 'login' ? '<span class="ab-btns"><button class="sm pri" data-ab="in">로그인 · 회원가입</button></span>' : '');
+    } else if (window.claude) {
+      b.className = 'authbar out';
+      b.innerHTML = '<span class="ab-st"><span class="cdot local"></span>로그인하지 않음 — 진도가 <b>이 기기에만</b> 저장됩니다</span>' +
+        (Cloud.db ? '<span class="ab-btns"><button class="sm pri" data-ab="in">로그인 · 회원가입</button></span>' : '');
+    } else {
+      b.className = 'authbar local';
+      b.innerHTML = '<span class="ab-st"><span class="cdot local"></span>오프라인 버전 — 로그인 없이 이 기기에만 저장됩니다</span>';
+    }
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-ab]'); if (!a) return;
+    var k = a.getAttribute('data-ab');
+    if (k === 'acc') openAccount();
+    else if (k === 'out') { if (confirm('로그아웃할까요?')) logout(false); }
+    else if (k === 'in') { gateTab = 'login'; Cloud.state = 'login'; showGate('login'); drawAuthBar(); }
+  });
   function hideGate() { var g = document.getElementById('gate'); if (g) g.hidden = true; document.body.classList.remove('gated'); }
   function login(id, pw) {
     return accRef(id).get().then(function (s) {
@@ -248,6 +338,7 @@
       if (a.disabled) return '사용이 중지된 계정입니다. 관리자에게 문의하세요.';
       return hashPw(pw, a.salt).then(function (h) {
         if (h !== a.hash) return '아이디 또는 비밀번호가 맞지 않습니다.';
+        if (a.pending) return '관리자 승인을 기다리는 계정입니다. 승인 후 다시 로그인하세요.';
         writeSession({ id: id, sv: a.sv || 1, last: id });
         retrying(function () { return accRef(id).update({ lastLogin: Date.now(), lastDev: DEV }); }).catch(cloudErr);
         return startSession(a).then(function () { return ''; });
@@ -333,12 +424,12 @@
       Cloud.db = db;
       return (user ? user.id().catch(function () { return null; }) : Promise.resolve(null)).then(function (cuid) {
         Cloud.cuid = cuid;
-        return ensureAdmin().then(function () {
+        return ensureAdmin().then(loadCfg).then(function () {
           var s = readSession();
           if (!s || !s.id) { setCloud('login', ''); showGate('login'); return; }
           return accRef(s.id).get().then(function (snap) {
             var a = snap.exists ? snap.data() : null;
-            if (!a || a.disabled || (a.sv || 1) !== s.sv) { writeSession({ last: s.id }); setCloud('login', ''); showGate('login'); return; }
+            if (!a || a.disabled || a.pending || (a.sv || 1) !== s.sv) { writeSession({ last: s.id }); setCloud('login', ''); showGate('login'); return; }
             return startSession(a);
           });
         });
@@ -526,10 +617,33 @@
     { id: 'stats', plate: '08', label: '학습기록', view: viewStats, cnt: function () { return Cloud.state === 'on' ? '☁' : ''; } },
     { id: 'admin', plate: '09', label: '사용자', view: viewAdmin, cnt: function () { return ''; }, admin: true }
   ];
+  /* 모바일 하단 메뉴: 가로 스크롤. 양 끝에 더 있음 표시(‹ ›), 현재 메뉴가 보이도록 자동 스크롤 */
+  var navMoreL = null, navMoreR = null;
+  function navEdges() {
+    var nav = document.getElementById('nav'); if (!nav || !navMoreR) return;
+    var max = nav.scrollWidth - nav.clientWidth;
+    navMoreL.classList.toggle('hide', nav.scrollLeft <= 4);
+    navMoreR.classList.toggle('hide', nav.scrollLeft >= max - 4);
+  }
+  function navSetup() {
+    var nav = document.getElementById('nav'); if (!nav || navMoreR) return;
+    navMoreL = document.createElement('div'); navMoreL.className = 'nav-more left hide'; navMoreL.textContent = '‹'; navMoreL.setAttribute('aria-hidden', 'true');
+    navMoreR = document.createElement('div'); navMoreR.className = 'nav-more'; navMoreR.textContent = '›'; navMoreR.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(navMoreL); document.body.appendChild(navMoreR);
+    nav.addEventListener('scroll', navEdges, { passive: true });
+    window.addEventListener('resize', navEdges);
+  }
   function drawNav(cur) {
+    navSetup();
     document.getElementById('nav').innerHTML = ROUTES.filter(function (r) { return !r.admin || isAdmin(); }).map(function (r) {
       return '<a href="#' + r.id + '" class="' + (r.id === cur ? 'on' : '') + '"><span class="plate">' + r.plate + '</span><span>' + r.label + '</span><span class="cnt">' + r.cnt() + '</span></a>';
     }).join('');
+    var nav = document.getElementById('nav'), on = nav.querySelector('a.on');
+    if (on && nav.scrollWidth > nav.clientWidth + 4) {
+      var l = on.offsetLeft, rr = l + on.offsetWidth;
+      if (l < nav.scrollLeft || rr > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = Math.max(0, l - (nav.clientWidth - on.offsetWidth) / 2);
+    }
+    navEdges();
   }
   function route() {
     var id = (location.hash || '#written').slice(1);
@@ -1995,6 +2109,10 @@
       '<div class="field"><label for="nuPw">임시 비밀번호</label><input type="text" id="nuPw" value="1234"></div>' +
       '<div class="field"><label for="nuRole">권한</label><select id="nuRole"><option value="user">일반 사용자</option><option value="admin">관리자</option></select></div>' +
       '</div><div class="row"><button class="pri" id="nuAdd">사용자 만들기</button><span class="status" id="nuSt"></span><span class="note">첫 로그인 때 사용자가 직접 비밀번호를 바꾸게 됩니다.</span></div></section>' +
+      '<section class="card"><h2><span class="n">⚙</span>회원가입 설정</h2><div class="row">' +
+      '<label class="chk"><input type="checkbox" id="cfSign"' + (cfg().allowSignup ? ' checked' : '') + '> 로그인 화면에서 회원가입 허용</label>' +
+      '<label class="chk"><input type="checkbox" id="cfAppr"' + (cfg().approval ? ' checked' : '') + '> 가입 후 관리자 승인 필요</label>' +
+      '<span class="status" id="cfSt"></span></div><p class="note">승인을 켜면 새로 가입한 계정은 아래 표에서 <b>승인</b>을 눌러야 로그인할 수 있습니다. 가족·스터디원만 쓴다면 켜 두는 것을 권장합니다.</p></section>' +
       '<section class="card"><h2><span class="n">💡</span>해설 관리</h2><div class="stat" id="exStat"></div>' +
       '<div class="row"><button class="pri" id="exGo">없는 해설 일괄 생성</button><button id="exStop" hidden>멈춤</button><button id="exExp">해설 내보내기(JSON)</button><span class="status" id="exSt"></span></div>' +
       '<p class="note">해설이 없는 문항을 8개씩 묶어 Claude가 만들고 온라인 DB에 저장합니다(한 번 만들면 모든 사용자가 바로 봅니다). 문항이 많으면 수십 분 걸리며, 화면을 닫으면 멈추고 다음에 이어서 만듭니다. 각 해설 상자의 ✎ 수정으로 고칠 수 있습니다.</p></section>' +
@@ -2015,9 +2133,9 @@
         var s = progSummary(data.prog[a.id]);
         var D = s.daily[dateKey()]; if (D && (D.g || D.m)) today++;
         tg += s.g7; tok += s.ok7;
-        return '<tr data-u="' + esc(a.id) + '" class="' + (adminUI.sel === a.id ? 'usel' : '') + (a.disabled ? ' udis' : '') + '">' +
+        return '<tr data-u="' + esc(a.id) + '" class="' + (adminUI.sel === a.id ? 'usel' : '') + (a.disabled ? ' udis' : '') + (a.pending ? ' upend' : '') + '">' +
           '<td><b>' + esc(a.name || a.id) + '</b><br><span class="mono">' + esc(a.id) + '</span>' + (a.id === Cloud.me.id ? ' <span class="mine-tag" style="display:inline-block">나</span>' : '') + '</td>' +
-          '<td>' + (a.role === 'admin' ? '<span class="rtag adm">관리자</span>' : '<span class="rtag">사용자</span>') + '<br>' + (a.disabled ? '<span class="ngc">사용 중지</span>' : a.mustChange ? '<span class="note">비번 변경 대기</span>' : '<span class="okc">사용 중</span>') + '</td>' +
+          '<td>' + (a.role === 'admin' ? '<span class="rtag adm">관리자</span>' : '<span class="rtag">사용자</span>') + '<br>' + (a.pending ? '<span class="ngc">승인 대기</span>' : a.disabled ? '<span class="ngc">사용 중지</span>' : a.mustChange ? '<span class="note">비번 변경 대기</span>' : '<span class="okc">사용 중</span>') + (a.createdBy === 'self' ? '<br><small class="note">직접 가입</small>' : '') + '</td>' +
           '<td class="mono">' + ago(a.lastLogin) + '<br>' + ago(s.upd) + '</td>' +
           '<td>' + bar(s.sw, QDATA.written.length) + '<br><small>현재 ' + s.lvW + '레벨</small></td>' +
           '<td>' + bar(s.sp, QDATA.practical.length) + '<br><small>현재 ' + s.lvP + '레벨</small></td>' +
@@ -2025,14 +2143,14 @@
           '<td class="mono">' + s.mo + ' / ' + (s.mo + s.mx) + (s.mo + s.mx ? '<br><small>' + Math.round(s.mo / (s.mo + s.mx) * 100) + '%</small>' : '') + '</td>' +
           '<td class="mono">' + s.g7 + '회 · ' + (s.g7 ? Math.round(s.ok7 / s.g7 * 100) + '%' : '—') + '<br><small>' + s.act7 + '일 학습</small></td>' +
           '<td class="mono">' + (s.last ? TYPES[s.last.t] + ' ' + s.last.n + '회<br><b class="' + (s.last.o / s.last.tot >= 0.6 ? 'okc' : 'ngc') + '">' + s.last.o + '/' + s.last.tot + '</b>' : '—') + '</td>' +
-          '<td><div class="abtns"><button class="sm pri" data-act="detail">상세</button><button class="sm" data-act="reset">비번 초기화</button>' +
+          '<td><div class="abtns">' + (a.pending ? '<button class="sm pri" data-act="approve">✔ 승인</button>' : '') + '<button class="sm' + (a.pending ? '' : ' pri') + '" data-act="detail">상세</button><button class="sm" data-act="reset">비번 초기화</button>' +
           (a.id !== Cloud.me.id ? '<button class="sm" data-act="role">' + (a.role === 'admin' ? '사용자로' : '관리자로') + '</button><button class="sm" data-act="dis">' + (a.disabled ? '사용 재개' : '사용 중지') + '</button><button class="sm danger" data-act="del">삭제</button>' : '') + '</div></td></tr>';
       }).join('');
       document.getElementById('ubody').innerHTML = rows || '<tr><td colspan="10" class="empty">계정이 없습니다.</td></tr>';
       function kpi(l, v, sub) { return '<div class="kpi"><small>' + l + '</small><b>' + v + '</b>' + (sub ? '<span>' + sub + '</span>' : '') + '</div>'; }
       document.getElementById('akpi').innerHTML = kpi('전체 사용자', users.length, users.filter(function (a) { return a.role === 'admin'; }).length + '명 관리자') +
         kpi('오늘 학습한 사용자', today, '') + kpi('최근 7일 빈칸 채점', tg, tg ? '정답률 ' + Math.round(tok / tg * 100) + '%' : '') +
-        kpi('사용 중지', users.filter(function (a) { return a.disabled; }).length, '');
+        kpi('승인 대기', users.filter(function (a) { return a.pending; }).length, '') + kpi('사용 중지', users.filter(function (a) { return a.disabled; }).length, '');
       if (adminUI.sel) detail(adminUI.sel);
     }
     function detail(id) {
@@ -2068,7 +2186,8 @@
     function act(id, what) {
       var a = data.acc.filter(function (x) { return x.id === id; })[0]; if (!a) return;
       var ref = accRef(id), p;
-      if (what === 'detail') { detail(id); document.getElementById('udetail').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+      if (what === 'approve') { p = ref.update({ pending: false, approvedBy: Cloud.me.id, approvedAt: Date.now() }).then(function () { toast(a.id + ' 가입을 승인했습니다.'); }); }
+      else if (what === 'detail') { detail(id); document.getElementById('udetail').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
       if (what === 'reset') {
         var np = prompt(a.id + ' 계정의 임시 비밀번호를 입력하세요. (다음 로그인 때 변경하게 됩니다)', '1234'); if (np == null) return;
         if (np.length < 4) { toast('비밀번호는 4자 이상이어야 합니다.'); return; }
@@ -2099,6 +2218,13 @@
       act(b.closest('tr').getAttribute('data-u'), b.getAttribute('data-act'));
     });
     document.getElementById('aRef').addEventListener('click', function () { load().then(function () { toast('최신 진도로 새로고침했습니다.'); }); });
+    function saveCfg() {
+      var c = { allowSignup: document.getElementById('cfSign').checked, approval: document.getElementById('cfAppr').checked, updatedAt: Date.now(), by: Cloud.me.id };
+      var st = document.getElementById('cfSt'); st.textContent = '저장 중…';
+      retrying(function () { return Cloud.db.doc('config/app').set(c); }).then(function () { Cloud.cfg = c; st.textContent = '저장했습니다.'; }, function (e) { st.textContent = '실패: ' + ((e && e.code) || '오류'); cloudErr(e); });
+    }
+    document.getElementById('cfSign').addEventListener('change', saveCfg);
+    document.getElementById('cfAppr').addEventListener('change', saveCfg);
     function exStat() {
       var all = exAllQs(), has = all.filter(function (q) { return exOf(q); }).length, ai = all.filter(function (q) { var r = exOf(q); return r && r.by === 'ai'; }).length;
       var el = document.getElementById('exStat');

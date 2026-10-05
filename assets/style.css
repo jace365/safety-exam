@@ -465,3 +465,47 @@ button.exb{border-color:var(--blue);color:var(--blue)}
 button.exb.on{background:var(--blue);color:#fff}
 .list.hide tr:not(.shown) .exwrap{display:none}
 @media (max-width:860px){.ex-t{font-size:14px}.ex-act{margin-left:0}}
+
+/* ───────── 로그인 상태 막대 · 모바일 하단 메뉴 가로 스크롤 · 회원가입 ───────── */
+.mainwrap{min-width:0;display:flex;flex-direction:column}
+.authbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 32px;background:#fff;border-bottom:2px solid var(--ink);font-size:13.5px;min-height:44px}
+.authbar:empty{display:none}
+.authbar .ab-st{display:flex;align-items:center;gap:6px;font-weight:700;min-width:0}
+.authbar .ab-st b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.authbar .ab-role{font-size:11px;font-weight:800;border:1.5px solid var(--ink);padding:0 6px;border-radius:2px}
+.authbar .ab-role.adm{background:var(--black);color:var(--yellow);border-color:var(--black)}
+.authbar .ab-db{color:var(--muted);font-size:12.5px}
+.authbar .ab-btns{margin-left:auto;display:flex;gap:6px}
+.authbar .ab-btns button{min-height:32px;padding:2px 12px;font-size:13px}
+.authbar.in{border-left:8px solid var(--green)}
+.authbar.out{border-left:8px solid var(--red);background:var(--red-bg)}
+.authbar.local{border-left:8px solid #9aa3ad;background:#f1f3f5}
+.gate-tabs{display:flex;border:2px solid var(--ink);margin:4px 0 12px}
+.gate-tabs button{flex:1 1 0;border:0;border-radius:0;min-height:42px}
+.gate-tabs button.on{background:var(--yellow)}
+.gate-tabs button+button{border-left:2px solid var(--ink)}
+.gate-in .gate-link{background:none;border:0;color:var(--blue);text-decoration:underline;padding:4px 0;min-height:0;font-weight:700;width:auto;margin-top:6px}
+.utbl tr.upend td{background:var(--yellow-soft)!important}
+.nav-more{display:none}
+@media (max-width:860px){
+  .authbar{padding:7px 14px;font-size:13px;position:sticky;top:0;z-index:30}
+  .authbar .ab-db{display:none}
+  .authbar .ab-btns button{min-height:34px;padding:2px 10px}
+  /* 하단 메뉴: 화면보다 많으면 가로로 밀어서(스크롤) 본다 */
+  #nav{overflow-x:auto!important;overflow-y:hidden;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;justify-content:flex-start}
+  #nav::-webkit-scrollbar{display:none}
+  #nav a{flex:0 0 auto!important;min-width:68px;padding:7px 8px!important;font-size:12px!important;scroll-snap-align:start}
+  #nav a .plate{font-size:10px!important}
+  .nav-more{display:block;position:fixed;right:0;bottom:env(safe-area-inset-bottom);z-index:41;width:26px;height:58px;pointer-events:none;
+    background:linear-gradient(90deg,rgba(17,20,23,0),rgba(17,20,23,.95) 70%);color:var(--yellow);font-weight:900;font-size:16px;display:grid;place-items:center;transition:opacity .2s}
+  .nav-more.left{right:auto;left:0;background:linear-gradient(270deg,rgba(17,20,23,0),rgba(17,20,23,.95) 70%)}
+  .nav-more.hide{opacity:0}
+}
+@media (max-width:860px){
+  .authbar{flex-wrap:nowrap;gap:6px;min-height:42px}
+  .authbar .ab-st{flex:1 1 auto;font-size:12.5px;white-space:nowrap;overflow:hidden}
+  .authbar .ab-st .mono{display:none}
+  .authbar .ab-role{flex:0 0 auto}
+  .authbar .ab-btns{flex:0 0 auto;gap:4px}
+  .authbar .ab-btns button{min-height:32px;padding:0 8px;font-size:12px}
+}
