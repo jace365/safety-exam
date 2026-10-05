@@ -459,7 +459,16 @@
   function sbCfg() {
     var o = {}, c = window.ISE_CONFIG || {};
     try { o = JSON.parse(localStorage.getItem('ise.sbcfg') || '{}') || {}; } catch (e) {}
-    return { url: (o.url || c.supabaseUrl || '').trim().replace(/\/+$/, ''), key: (o.key || c.supabaseAnonKey || '').trim(), domain: (o.domain || c.emailDomain || 'ise.local').trim(), local: !!(o.url && o.key) };
+    return { url: sbFixUrl(o.url || c.supabaseUrl || ''), key: (o.key || c.supabaseAnonKey || '').trim(), domain: (o.domain || c.emailDomain || 'ise.local').trim(), local: !!(o.url && o.key) };
+  }
+  /* 주소 자동 보정: 끝의 /rest/v1·/auth/v1 등 경로 제거, 대시보드 주소(supabase.com/dashboard/project/<ref>)는 https://<ref>.supabase.co로 */
+  function sbFixUrl(u) {
+    u = String(u || '').trim();
+    if (u && !/^https?:\/\//i.test(u)) u = 'https://' + u;
+    var m = u.match(/supabase\.com\/dashboard\/project\/([a-z0-9]+)/i);
+    if (m) return 'https://' + m[1] + '.supabase.co';
+    m = u.match(/^(https?:\/\/[^\/?#]+)/i);
+    return m ? m[1] : u.replace(/\/+$/, '');
   }
   function emailOf(id) { return id + '@' + sbCfg().domain; }
   function idOfEmail(em) { return String(em || '').split('@')[0].toLowerCase(); }
@@ -602,7 +611,7 @@
         if (id === 'admin' && pw === 'admin') {
           // 처음 설치: admin/admin 계정을 만든다(DB에 관리자가 아직 없을 때만)
           return sb.rpc('ise_needs_bootstrap').then(function (b) {
-            if (b.error) return 'DB 설정이 안 된 것 같습니다. supabase/setup.sql을 SQL Editor에서 실행했는지 확인하세요. (' + b.error.message + ')';
+            if (b.error) return /Invalid path|Invalid API key|No API key/i.test(b.error.message) ? 'Supabase 주소나 키가 잘못되었습니다. config.js의 supabaseUrl은 https://xxxx.supabase.co 까지만, supabaseAnonKey는 anon public 키를 넣으세요. (' + b.error.message + ')' : 'DB 설정이 안 된 것 같습니다. supabase/setup.sql을 SQL Editor에서 실행했는지 확인하세요. (' + b.error.message + ')';
             if (b.data !== true) return '아이디 또는 비밀번호가 맞지 않습니다.';
             return sb.auth.signUp({ email: emailOf('admin'), password: sbPw('admin') }).then(function (s) {
               if (s.error) return /registered|exists/i.test(s.error.message) ? '아이디 또는 비밀번호가 맞지 않습니다.' : '관리자 계정 생성 실패: ' + s.error.message;
