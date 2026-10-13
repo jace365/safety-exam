@@ -1862,8 +1862,11 @@
     var ids = levelIds(type, lv);
     return ids.length > 0 && ids.every(function (id) { return !!store.solved[id]; });
   }
+  /* 2026.10.13: 레벨 잠금 해제 — 이전 레벨을 다 맞히지 않아도 모든 레벨을 자유롭게 고른다.
+     잠금을 되살리려면 LEVEL_LOCK = true (앞 레벨 완료 시에만 열림) */
+  var LEVEL_LOCK = false;
   function levelUnlocked(type, lv) {
-    if (lv === 'bonus' || lv <= 1) return true;
+    if (!LEVEL_LOCK || lv === 'bonus' || lv <= 1) return true;
     return levelComplete(type, lv - 1);
   }
 
@@ -1969,7 +1972,7 @@
     root.innerHTML =
       head(TYPES[ui.type] + (isNote ? ' 오답노트' : ' 퀴즈'),
         isNote ? TYPES[ui.type] + ' 퀴즈에서 틀린 문제와, ' + TYPES[ui.type] + ' 목록·모의고사·퀴즈에서 “＋ 오답노트”로 담은 문제를 모아 다시 풉니다. 이해했다면 “오답 해제”로 목록에서 뺄 수 있습니다.'
-          : (ui.type === 'written' ? '필답형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞고, 한 레벨을 모두 맞혀야 다음 레벨이 열립니다.' : '작업형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞고, 한 레벨을 모두 맞혀야 다음 레벨이 열립니다.'),
+          : (ui.type === 'written' ? '필답형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞으며, 원하는 레벨을 바로 골라 풀 수 있습니다(다 맞힌 레벨은 ✓).' : '작업형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞으며, 원하는 레벨을 바로 골라 풀 수 있습니다(다 맞힌 레벨은 ✓).'),
         '<span class="tag" id="qtag"></span>') +
       '<div class="qwrap has-side"><div class="seg seg-type" id="qtseg">' +
       ['written', 'practical'].map(function (t) {
@@ -2122,7 +2125,7 @@
           } else {
             var lvNow = ui.levelByType[ui.type];
             if (lvNow !== 'bonus' && !wasSolved && levelComplete(ui.type, lvNow)) {
-              toast(lvNow < levelCount(ui.type) ? (lvNow + '레벨을 모두 맞혔습니다! ' + (lvNow + 1) + '레벨이 열렸습니다.') : '모든 레벨을 완료했습니다!');
+              toast(lvNow < levelCount(ui.type) ? (lvNow + '레벨을 모두 맞혔습니다! ✓') : '모든 레벨을 완료했습니다!');
             }
             drawLevels();
           }
