@@ -1127,7 +1127,8 @@
     if (rounds.indexOf(ui.n) < 0) ui.n = rounds[0] || 1;
     var n = ui.n, list = mockList(type, n), mt = MTYPE[type], key = type + ':' + n;
     var S = ui.qs;
-    if (!S || S.key !== key) S = ui.qs = { key: key, stage: 'ready', ids: [], i: 0, t0: 0, ms: 0, vals: {}, shown: {}, retry: false, recorded: false };
+    if (!S || S.key !== key) S = ui.qs = { key: key, stage: 'ready', ids: [], i: 0, t0: 0, ms: 0, vals: {}, shown: {}, graded: {}, retry: false, recorded: false };
+    if (!S.graded) S.graded = {};
     S.ids = S.ids.filter(function (id) { return list.some(function (q) { return q.id === id; }); });
     root.innerHTML =
       head('모의고사', '실제 시험처럼 <b>한 문제씩 빈칸을 채워 푸는 퀴즈 형식</b>입니다. 채점하면 맞음/틀림이 자동으로 표시되고, 마지막 문제를 끝내면 점수가 학습기록' + (Cloud.state === 'on' ? '(DB)' : '') + '에 저장됩니다.',
@@ -1151,7 +1152,7 @@
     }
 
     function drawReady() {
-      clearInterval(ui.timer); $('mtime').textContent = '';
+      clearInterval(ui.timer); $('mtime').textContent = ''; $('mq').classList.remove('has-side');
       var s = mockStat(type, n), xs = list.filter(function (q) { return res(q.id) === 'x'; }), un = s.t - s.o - s.x;
       var partial = s.o + s.x > 0 && un > 0;
       $('mq').innerHTML = '<div class="qcard mstart"><div class="qh"><span class="no">' + mt.label + ' 모의고사 ' + n + '회</span><span>' + list.length + '문항 · 빈칸 채우기</span></div><div class="qb">' +
@@ -1182,14 +1183,20 @@
       });
     }
     function begin(ids, i, retry) {
-      S.ids = ids; S.i = i; S.stage = 'run'; S.t0 = Date.now(); S.ms = 0; S.vals = {}; S.shown = {}; S.retry = retry; S.recorded = false;
+      S.ids = ids; S.i = i; S.stage = 'run'; S.t0 = Date.now(); S.ms = 0; S.vals = {}; S.shown = {}; S.graded = {}; S.retry = retry; S.recorded = false;
       startTimer(); drawQ(); window.scrollTo(0, 0);
     }
-    function dotsHTML() {
-      return '<div class="mdots">' + S.ids.map(function (id, k) {
-        var r = res(id);
-        return '<button data-j="' + k + '" class="' + (r ? r : '') + (k === S.i ? ' cur' : '') + '" title="' + (k + 1) + '번">' + (k + 1) + '</button>';
-      }).join('') + '</div>';
+    /* 문제 목록(오른쪽): 채점 결과는 store.mockRes, 채점 전 입력은 S.vals, 정답만 본 문제는 S.shown */
+    function mst(id) {
+      var r = res(id); if (r) return r;
+      if (S.shown[id]) return 'p';
+      var v = S.vals[id]; if (v && v.some(function (x) { return String(x).trim(); })) return 'w';
+      return '';
+    }
+    function drawSide() {
+      var box = $('msidebox'); if (!box) return;
+      box.innerHTML = qsideHTML(S.ids.map(function (id) { var qq = findQ(id); return { text: qq ? qq.q : id, st: mst(id) }; }), S.i, mt.label + ' ' + n + '회');
+      bindQside(function (k) { S.i = k; drawQ(); qsideScroll($('mq')); });
     }
     function drawQ() {
       var cur = q(S.i); if (!cur) { finish(); return; }
@@ -1197,13 +1204,15 @@
       $('mq').innerHTML =
         '<div class="prog"><i style="width:' + Math.round((st.o + st.x) / st.t * 100) + '%"></i></div>' +
         '<div class="stat">' + (S.retry ? '틀린 문제 다시 · ' : '') + '맞음 <b>' + st.o + '</b> · 틀림 <b>' + st.x + '</b> · 남음 <b>' + (st.t - st.o - st.x) + '</b></div>' +
-        dotsHTML() +
+        '<div class="qlay"><div class="qmain">' +
         '<div class="qcard" data-id="' + cur.id + '"><div class="qh"><span class="no">' + qNo(cur) + ' · ' + (S.i + 1) + ' / ' + S.ids.length + '</span><span>' + iconFor(cur.subject) + ' ' + esc(cur.subject) + (cur.umock ? ' · 내 입력' : '') + '</span></div>' +
         '<div class="qb"><p class="qtext">' + esc(cur.q) + '</p><div id="mab"></div><div class="banner" id="mbn"></div><div id="mrv"></div>' +
         '<div class="qact">' +
         (blanks ? '<button class="pri" id="mg">채점</button>' : '<button class="o-btn" data-self="o">맞음</button><button class="x-btn" data-self="x">틀림</button>') +
         '<button id="ms">정답 보기</button><button class="spk" data-spk="' + cur.id + ':q" title="문제 듣기">🔊문제</button>' + bmBtnHTML(cur.id, true) + wrBtnHTML(cur.id) + '</div></div>' +
-        '<div class="qnav"><button id="mp">◀ 이전</button><button class="dark" id="mn">' + (S.i === S.ids.length - 1 ? '결과 보기 ▶' : '다음 ▶') + '</button><button class="sm danger" id="mend">시험 종료</button></div></div>';
+        '<div class="qnav"><button id="mp">◀ 이전</button><button class="dark" id="mn">' + (S.i === S.ids.length - 1 ? '결과 보기 ▶' : '다음 ▶') + '</button><button class="sm danger" id="mend">시험 종료</button></div></div>' +
+        '</div><div id="msidebox"></div></div>';
+      $('mq').classList.add('has-side');
       var ab = buildAnswer(cur); $('mab').appendChild(ab.box);
       var saved = S.vals[cur.id];
       if (saved) ab.blanks.forEach(function (b, k) { b.inp.value = saved[k] || ''; });
@@ -1212,22 +1221,24 @@
         var okc = gradeBlanks(cur, ab.blanks), all = okc === ab.blanks.length;
         ab.blanks.forEach(function (b) {
           b.inp.classList.toggle('ok', b.ok); b.inp.classList.toggle('ng', !b.ok);
-          if (!b.ok && !cur.unordered && !b.corr) { var s = document.createElement('span'); s.className = 'corr'; s.textContent = '(' + b.accepts[0] + ')'; b.inp.parentNode.insertBefore(s, b.inp.nextSibling); b.corr = s; }
+          if (b.corr) { b.corr.remove(); b.corr = null; }
+          if (!b.ok && !cur.unordered) { var s = document.createElement('span'); s.className = 'corr'; s.textContent = '(' + b.accepts[0] + ')'; b.inp.parentNode.insertBefore(s, b.inp.nextSibling); b.corr = s; }
         });
         var bn = $('mbn'); bn.className = 'banner ' + (all ? 'ok' : 'ng');
         bn.textContent = (all ? '정답입니다! ' : '오답이 있습니다. ') + okc + ' / ' + ab.blanks.length + ' 빈칸 → ' + (all ? '맞음' : '틀림');
         reveal();
         if (record) {
-          S.vals[cur.id] = ab.blanks.map(function (b) { return b.inp.value; });
+          S.vals[cur.id] = ab.blanks.map(function (b) { return b.inp.value; }); S.graded[cur.id] = true;
           store.mockRes[cur.id] = all ? 'o' : 'x'; save();
           logEv({ k: 'mockq', t: type, n: n, id: cur.id, ok: all, sc: [okc, ab.blanks.length] });
-          var d = document.querySelector('.mdots [data-j="' + S.i + '"]'); if (d) d.className = (all ? 'o' : 'x') + ' cur';
+          drawSide();
           var s2 = sessStat(); document.querySelector('#mq .stat').innerHTML = (S.retry ? '틀린 문제 다시 · ' : '') + '맞음 <b>' + s2.o + '</b> · 틀림 <b>' + s2.x + '</b> · 남음 <b>' + (s2.t - s2.o - s2.x) + '</b>';
           document.querySelector('#mq .prog i').style.width = Math.round((s2.o + s2.x) / s2.t * 100) + '%';
           $('mn').focus({ preventScroll: true });
         }
       }
-      if (blanks && saved && r) showGrade(false);
+      /* 채점한 문제는 채점 결과까지, 채점 전 문제는 입력한 답만 그대로 복원 */
+      if (blanks && saved && r && S.graded[cur.id]) showGrade(false);
       else if (r || S.shown[cur.id]) { reveal(); if (r) { var bn0 = $('mbn'); bn0.className = 'banner ' + (r === 'o' ? 'ok' : 'ng'); bn0.textContent = r === 'o' ? '맞음으로 채점됨' : '틀림으로 채점됨'; } }
       if ($('mg')) $('mg').addEventListener('click', function () {
         if (!ab.blanks.some(function (b) { return b.inp.value.trim(); })) { toast('빈칸에 답을 입력한 뒤 채점하세요. 모르면 “정답 보기”를 누르세요.'); ab.blanks[0].inp.focus(); return; }
@@ -1241,6 +1252,7 @@
       });
       $('ms').addEventListener('click', function () {
         reveal();
+        drawSide();
         if (blanks && !res(cur.id)) { store.mockRes[cur.id] = 'x'; save(); logEv({ k: 'mockq', t: type, n: n, id: cur.id, ok: false, sc: [0, ab.blanks.length], peek: true }); toast('정답을 먼저 확인한 문제는 “틀림”으로 기록됩니다.'); drawQ(); }
       });
       $('mp').addEventListener('click', function () { if (S.i > 0) { S.i--; drawQ(); } else toast('첫 문제입니다.'); });
@@ -1250,19 +1262,21 @@
         if (left && !confirm('채점하지 않은 문제가 ' + left + '개 있습니다. 시험을 끝내고 결과를 볼까요?')) return;
         finish();
       });
-      document.querySelector('#mq .mdots').addEventListener('click', function (e) {
-        var b = e.target.closest('[data-j]'); if (!b) return; S.i = parseInt(b.getAttribute('data-j'), 10); drawQ();
-      });
       var bmb = document.querySelector('#mq [data-bm]');
       if (bmb) bmb.addEventListener('click', function () { toggleBM(cur.id); bmb.outerHTML = bmBtnHTML(cur.id, true); drawNav('mock'); drawQ(); });
       ab.blanks.forEach(function (b, k) {
+        b.inp.addEventListener('input', function () {
+          var before = mst(cur.id); S.vals[cur.id] = ab.blanks.map(function (x) { return x.inp.value; });
+          if (mst(cur.id) !== before) drawSide();
+        });
         b.inp.addEventListener('keydown', function (e) {
           if (e.key !== 'Enter') return; e.preventDefault();
           if (res(cur.id)) { $('mn').click(); return; }
           if (ab.blanks[k + 1]) ab.blanks[k + 1].inp.focus(); else $('mg').click();
         });
       });
-      if (!r && ab.blanks[0]) ab.blanks[0].inp.focus({ preventScroll: true });
+      drawSide();
+      if (!r && ab.blanks[0]) { var fe = ab.blanks.filter(function (b) { return !b.inp.value; })[0] || ab.blanks[0]; fe.inp.focus({ preventScroll: true }); }
     }
     function finish() {
       clearInterval(ui.timer);
@@ -1277,6 +1291,7 @@
       drawDone();
     }
     function drawDone() {
+      $('mq').classList.remove('has-side');
       $('mtime').textContent = S.ms ? '소요 ' + fmtT(S.ms) : '';
       var st = sessStat(), un = st.t - st.o - st.x, pct = st.t ? Math.round(st.o / st.t * 100) : 0;
       var wrong = S.ids.filter(function (id) { return res(id) !== 'o'; }).map(findQ).filter(Boolean);
@@ -1783,10 +1798,47 @@
     });
   }
 
+  /* ───────── 문제 목록 사이드 패널 (퀴즈·오답노트·모의고사 공용) ─────────
+     items = [{ text, st }] — st: 'o' 맞음 · 'x' 틀림 · 'w' 작성 중(채점 전) · 'p' 정답만 확인 · '' 안 풂.
+     데스크톱은 문제 카드 오른쪽에 붙어 따라 내려오고(sticky), 휴대폰은 카드 위에 번호 칩으로 접어 둘 수 있다. */
+  var QSIDE_TXT = { o: '맞음', x: '틀림', w: '작성 중', p: '정답 확인', n: '안 풂' };
+  var QSIDE_MARK = { o: '✔', x: '✘', w: '✎', p: '👁', n: '·' };
+  var qsideOpen = (function () { try { return localStorage.getItem('ise.qside') !== '0'; } catch (e) { return true; } })();
+  function qsideHTML(items, cur, title) {
+    var c = { o: 0, x: 0, w: 0, p: 0, n: 0 };
+    items.forEach(function (it) { c[it.st || 'n']++; });
+    return '<aside class="qside' + (qsideOpen ? '' : ' shut') + '" id="qside" aria-label="문제 목록">' +
+      '<div class="qs-h"><b>문제 목록</b><span class="qs-pos">' + (title ? esc(title) + ' · ' : '') + (cur + 1) + ' / ' + items.length + '</span>' +
+      '<button class="sm qs-tg" data-qstg aria-expanded="' + qsideOpen + '">' + (qsideOpen ? '접기 ▴' : '펼치기 ▾') + '</button></div>' +
+      '<div class="qs-sum"><span class="o">✔ 맞음 <b>' + c.o + '</b></span><span class="x">✘ 틀림 <b>' + c.x + '</b></span>' +
+      '<span class="w">✎ 작성 <b>' + (c.w + c.p) + '</b></span><span class="n">· 안 풂 <b>' + c.n + '</b></span></div>' +
+      '<ol class="qs-list">' + items.map(function (it, k) {
+        var st = it.st || 'n';
+        return '<li><button data-qj="' + k + '" class="' + st + (k === cur ? ' cur' : '') + '" title="' + (k + 1) + '번 · ' + QSIDE_TXT[st] + '">' +
+          '<i class="qs-no">' + (k + 1) + '</i><i class="qs-mk">' + QSIDE_MARK[st] + '</i><span class="qs-t">' + esc(it.text) + '</span></button></li>';
+      }).join('') + '</ol></aside>';
+  }
+  function bindQside(onJump) {
+    var el = document.getElementById('qside'); if (!el) return;
+    el.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-qstg]');
+      if (t) {
+        qsideOpen = !qsideOpen; try { localStorage.setItem('ise.qside', qsideOpen ? '1' : '0'); } catch (x) {}
+        el.classList.toggle('shut', !qsideOpen); t.textContent = qsideOpen ? '접기 ▴' : '펼치기 ▾'; t.setAttribute('aria-expanded', qsideOpen);
+        return;
+      }
+      var b = e.target.closest('[data-qj]'); if (b) onJump(parseInt(b.getAttribute('data-qj'), 10));
+    });
+    var c = el.querySelector('button.cur'), l = el.querySelector('.qs-list');
+    if (c && l) l.scrollTop = Math.max(0, c.parentNode.offsetTop - l.clientHeight / 2 + 20);
+  }
+  /* 목록에서 번호를 눌러 이동한 뒤 휴대폰에서는 문제 카드가 보이도록 스크롤 */
+  function qsideScroll(el) { if (el && window.innerWidth <= 1100) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+
   /* ───────── 퀴즈 / 오답노트 ───────── */
   var quizUI = {
-    quiz: { type: 'written', levelByType: { written: 1, practical: 1 }, pool: null, i: 0, tried: 0, correct: 0 },
-    note: { type: 'written', subj: '', rand: false, pool: null, i: 0, tried: 0, correct: 0 }
+    quiz: { type: 'written', levelByType: { written: 1, practical: 1 }, pool: null, i: 0, tried: 0, correct: 0, st: {} },
+    note: { type: 'written', subj: '', rand: false, pool: null, i: 0, tried: 0, correct: 0, st: {} }
   };
   function norm(s) { return String(s).toLowerCase().replace(/[\s·・,.\-()\[\]「」'"“”‘’~∙:;]/g, ''); }
 
@@ -1821,7 +1873,7 @@
     var ui = quizUI[mode];
     if (mode === 'quiz') {
       ui.pool = shuffle(levelIds(ui.type, ui.levelByType[ui.type]));
-      ui.i = 0;
+      ui.i = 0; ui.st = {};   /* 새로 섞을 때만 이번 풀이(입력·채점) 상태를 비운다 */
       return;
     }
     var ids = noteSource(ui.type).filter(function (q) {
@@ -1919,7 +1971,7 @@
         isNote ? TYPES[ui.type] + ' 퀴즈에서 틀린 문제와, ' + TYPES[ui.type] + ' 목록·모의고사·퀴즈에서 “＋ 오답노트”로 담은 문제를 모아 다시 풉니다. 이해했다면 “오답 해제”로 목록에서 뺄 수 있습니다.'
           : (ui.type === 'written' ? '필답형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞고, 한 레벨을 모두 맞혀야 다음 레벨이 열립니다.' : '작업형 예상문제를 레벨별로 20문항씩 풉니다. 메뉴를 열 때마다 순서를 섞고, 한 레벨을 모두 맞혀야 다음 레벨이 열립니다.'),
         '<span class="tag" id="qtag"></span>') +
-      '<div class="qwrap"><div class="seg seg-type" id="qtseg">' +
+      '<div class="qwrap has-side"><div class="seg seg-type" id="qtseg">' +
       ['written', 'practical'].map(function (t) {
         return '<button data-t="' + t + '" class="' + (t === ui.type ? 'on' : '') + '">' + TYPES[t] + (isNote ? ' 오답노트' : ' 퀴즈') + '<small style="margin-left:8px">' + qcount(t) + '</small></button>';
       }).join('') + '</div>' +
@@ -1931,7 +1983,7 @@
         '<select id="qo"><option value="seq">순서대로</option><option value="rand"' + (ui.rand ? ' selected' : '') + '>무작위</option></select>' +
         '<button class="danger sm" id="qclear">전체 해제</button>' : '') +
       '<div class="stat" id="qstat"></div></div>' +
-      '<div class="prog"><i id="qbar"></i></div><div id="qbody"></div></div>';
+      '<div class="prog"><i id="qbar"></i></div><div class="qlay"><div id="qbody" class="qmain"></div><div id="qsidebox"></div></div></div>';
 
     if (isNote) {
       document.getElementById('qs').addEventListener('change', function (e) { ui.subj = e.target.value; buildPool(mode); viewQuiz(mode); });
@@ -1952,7 +2004,7 @@
     }
     document.getElementById('qtseg').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-t]'); if (!b) return;
-      ui.type = b.getAttribute('data-t'); ui.subj = ''; ui.tried = 0; ui.correct = 0;
+      ui.type = b.getAttribute('data-t'); ui.subj = ''; ui.tried = 0; ui.correct = 0; ui.st = {};
       viewQuiz(mode);
     });
     function drawLevels() {
@@ -1968,19 +2020,37 @@
       document.getElementById('qbar').style.width = ui.pool.length ? ((ui.i + 1) / ui.pool.length * 100) + '%' : '0';
     }
 
+    /* 이번 풀이 상태(문제 id별): vals 입력값, g 채점함, all 전부 맞음, okc 맞은 빈칸 수, shown 정답 봄, counted 통계 반영 */
+    function qst(id) {
+      var s = ui.st[id]; if (!s) return '';
+      if (s.g) return s.all ? 'o' : 'x';
+      if (s.shown) return 'p';
+      if (s.vals && s.vals.some(function (v) { return String(v).trim(); })) return 'w';
+      return '';
+    }
+    function drawSide() {
+      var box = document.getElementById('qsidebox'); if (!box) return;
+      if (!ui.pool.length) { box.innerHTML = ''; return; }
+      box.innerHTML = qsideHTML(ui.pool.map(function (id) { var q = findQ(id); return { text: q ? q.q : id, st: qst(id) }; }), ui.i,
+        isNote ? '오답노트' : (curLv === 'bonus' ? '사용자추가' : curLv + '레벨'));
+      bindQside(function (k) { ui.i = k; drawQ(); qsideScroll(document.getElementById('qbody')); });
+    }
+
     function drawQ() {
       var body = document.getElementById('qbody');
+      if (ui.i >= ui.pool.length) ui.i = ui.pool.length - 1;
+      if (ui.i < 0) ui.i = 0;
       drawStat();
       if (!ui.pool.length) {
         body.innerHTML = '<div class="qcard"><div class="empty">' + (isNote
           ? '오답노트가 비어 있습니다.<br>퀴즈에서 틀린 문제는 자동으로, 필답형·작업형 목록과 모의고사에서는 “＋ 오답노트”(📝) 버튼으로 담을 수 있습니다.'
           : '조건에 맞는 문제가 없습니다.') + '</div></div>';
+        drawSide();
         return;
       }
-      if (ui.i >= ui.pool.length) ui.i = ui.pool.length - 1;
-      if (ui.i < 0) ui.i = 0;
       var q = findQ(ui.pool[ui.i]);
       var ab = buildAnswer(q);
+      var S = ui.st[q.id] || (ui.st[q.id] = {});
       var card = document.createElement('div'); card.className = 'qcard';
       card.innerHTML =
         '<div class="qh"><span>' + iconFor(q.subject) + '<span class="no">' + (q.user ? qNo(q) : 'No.' + qNo(q)) + '</span> · ' + esc(q.subject) + (q.mock ? ' · 모의고사 ' + q.mock + '회' : '') + '</span><span id="wf"></span></div>' +
@@ -1996,8 +2066,9 @@
         card.querySelector('#abox').innerHTML = '<p class="note">빈칸이 없는 문항입니다. 답을 먼저 떠올리거나 써 본 뒤 “정답 보기”로 확인하세요.</p>';
         card.querySelector('#bg').style.display = 'none';
       } else card.querySelector('#abox').appendChild(ab.box);
+      /* 이전/다음으로 돌아와도 내가 쓴 답이 그대로 남도록 복원 */
+      if (S.vals) ab.blanks.forEach(function (b, k) { b.inp.value = S.vals[k] || ''; });
 
-      var graded = false, counted = false;
       function flag() {
         var w = !!store.wrong[q.id];
         card.querySelector('#wf').innerHTML = w ? '<span class="wrongflag">오답노트 등록</span>' : '';
@@ -2015,11 +2086,14 @@
         card.querySelector('#rv').innerHTML = '<div class="reveal"><b>정답</b>' + ansHTML(q.a) + '</div>' + exWrapHTML(q);
         fillEx(card.querySelector('#rv .exwrap'), q, true);
       }
-      card.querySelector('#bg').addEventListener('click', function () {
+      function saveVals() { S.vals = ab.blanks.map(function (b) { return b.inp.value; }); }
+      /* 채점 결과 표시(새로 채점할 때와 돌아와서 복원할 때 같이 사용) */
+      function paint() {
         var okc = gradeBlanks(q, ab.blanks), all = okc === ab.blanks.length;
         ab.blanks.forEach(function (b) {
           b.inp.classList.toggle('ok', b.ok); b.inp.classList.toggle('ng', !b.ok);
-          if (!b.ok && !q.unordered && !b.corr) {
+          if (b.corr) { b.corr.remove(); b.corr = null; }
+          if (!b.ok && !q.unordered) {
             var s = document.createElement('span'); s.className = 'corr'; s.textContent = '(' + b.accepts[0] + ')';
             b.inp.parentNode.insertBefore(s, b.inp.nextSibling); b.corr = s;
           }
@@ -2028,7 +2102,17 @@
         bn.className = 'banner ' + (all ? 'ok' : 'ng');
         bn.textContent = (all ? '정답입니다! ' : '오답이 있습니다. ') + okc + ' / ' + ab.blanks.length + ' 빈칸';
         reveal();
-        if (!counted) { ui.tried++; if (all) ui.correct++; counted = true; logEv({ k: mode, t: ui.type, id: q.id, ok: all, sc: [okc, ab.blanks.length] }); }
+        return { okc: okc, all: all };
+      }
+      if (S.g && !noBlank) paint();
+      else if (S.shown) reveal();
+
+      card.querySelector('#bg').addEventListener('click', function () {
+        if (!ab.blanks.some(function (b) { return b.inp.value.trim(); })) { toast('빈칸에 답을 입력한 뒤 채점하세요. 모르면 “정답 보기”를 누르세요.'); ab.blanks[0].inp.focus(); return; }
+        saveVals();
+        var r = paint(), okc = r.okc, all = r.all;
+        S.g = true; S.all = all; S.okc = okc;
+        if (!S.counted) { ui.tried++; if (all) ui.correct++; S.counted = true; logEv({ k: mode, t: ui.type, id: q.id, ok: all, sc: [okc, ab.blanks.length] }); }
         if (!all && !store.wrong[q.id]) { store.wrong[q.id] = Date.now(); save(); flag(); }
         if (all) {
           var wasSolved = !!store.solved[q.id];
@@ -2043,10 +2127,10 @@
             drawLevels();
           }
         }
-        drawStat(); graded = true;
+        drawStat(); drawSide();
       });
-      card.querySelector('#bs').addEventListener('click', reveal);
-      card.querySelector('#br').addEventListener('click', function () { drawQ(); });
+      card.querySelector('#bs').addEventListener('click', function () { reveal(); if (!S.shown) { S.shown = true; drawSide(); } });
+      card.querySelector('#br').addEventListener('click', function () { delete ui.st[q.id]; drawQ(); });
       card.querySelector('#bw').addEventListener('click', function () {
         if (store.wrong[q.id]) {
           delete store.wrong[q.id]; save();
@@ -2065,17 +2149,24 @@
       card.querySelector('#bjg').addEventListener('click', jump);
       card.querySelector('#bj').addEventListener('keydown', function (e) { if (e.key === 'Enter') jump(); });
       ab.blanks.forEach(function (b, k) {
+        b.inp.addEventListener('input', function () {
+          var before = qst(q.id); saveVals();
+          if (qst(q.id) !== before) drawSide();   /* 안 풂 ↔ 작성 중이 바뀔 때만 목록 갱신 */
+        });
         b.inp.addEventListener('keydown', function (e) {
           if (e.key !== 'Enter') return;
           e.preventDefault();
-          if (ab.blanks[k + 1] && !graded) ab.blanks[k + 1].inp.focus(); else card.querySelector('#bg').click();
+          if (ab.blanks[k + 1] && !S.g) ab.blanks[k + 1].inp.focus();
+          else if (S.g) card.querySelector('#bn2').click();
+          else card.querySelector('#bg').click();
         });
       });
-      if (ab.blanks[0]) ab.blanks[0].inp.focus({ preventScroll: true });
+      drawSide();
+      if (S.g) card.querySelector('#bn2').focus({ preventScroll: true });
+      else if (ab.blanks[0]) { var fe = ab.blanks.filter(function (b) { return !b.inp.value; })[0] || ab.blanks[0]; fe.inp.focus({ preventScroll: true }); }
       else card.querySelector('#bs').focus({ preventScroll: true });
     }
   }
-
 
   /* ───────── 학습기록(DB) ───────── */
   var KLABEL = { quiz: '퀴즈', note: '오답노트', list: '목록 괄호', mockq: '모의 퀴즈', mark: '모의 자가채점', mock: '모의고사 점수', add: '문제 입력' };

@@ -513,3 +513,43 @@ button.exb.on{background:var(--blue);color:#fff}
 .ex-tag.base{background:#555}
 .ex-img{margin:6px 0 8px;padding:6px;background:#fff;border:1px solid var(--line);max-width:420px}
 .ex-img svg{display:block;width:100%;height:auto}
+
+/* ───────── 문제 목록 사이드 패널(퀴즈·오답노트·모의고사) ───────── */
+.qwrap.has-side{max-width:1240px}
+.qlay{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:14px;align-items:start}
+.qlay>.qmain{min-width:0}
+.qside{position:sticky;top:12px;margin-top:12px;background:var(--panel);border:2px solid var(--ink);display:flex;flex-direction:column;max-height:calc(100vh - 40px)}
+.qs-h{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--black);color:#fff;font-size:13px;border-bottom:4px solid var(--yellow)}
+.qs-h b{color:var(--yellow);white-space:nowrap}
+.qs-h .qs-pos{flex:1;font-family:var(--mono);font-size:12px;color:#d6dbe0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qs-h .qs-tg{background:transparent;color:#fff;border-color:#8a939b;min-height:26px;padding:0 8px;font-size:12px}
+.qs-sum{display:flex;flex-wrap:wrap;gap:4px 10px;padding:7px 10px;font-size:12px;border-bottom:1.5px solid var(--line);background:#f1f3f5}
+.qs-sum .o{color:var(--green)}.qs-sum .x{color:var(--red)}.qs-sum .w{color:#8a6a00}.qs-sum .n{color:var(--muted)}
+.qs-list{list-style:none;margin:0;padding:6px;overflow-y:auto;position:relative;flex:1;min-height:0}
+.qs-list li{margin:0 0 3px}
+.qs-list button{display:flex;align-items:center;gap:6px;width:100%;min-height:32px;padding:3px 6px;text-align:left;font-size:13px;font-weight:500;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:0}
+.qs-list button:hover{border-color:var(--ink)}
+.qs-no{font-style:normal;font-family:var(--mono);font-weight:700;min-width:22px;text-align:right;font-size:12px}
+.qs-mk{font-style:normal;width:16px;text-align:center;font-weight:700}
+.qs-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.qs-list button.o{background:var(--green-bg);border-color:var(--green)}.qs-list button.o .qs-mk,.qs-list button.o .qs-no{color:var(--green)}
+.qs-list button.x{background:var(--red-bg);border-color:var(--red)}.qs-list button.x .qs-mk,.qs-list button.x .qs-no{color:var(--red)}
+.qs-list button.w,.qs-list button.p{background:#fff8d6;border-color:#c9a400}.qs-list button.w .qs-mk,.qs-list button.p .qs-mk{color:#8a6a00}
+.qs-list button.n .qs-mk{color:#9aa3ab}
+.qs-list button.cur{outline:3px solid var(--yellow);outline-offset:0;border-color:var(--ink);box-shadow:inset 4px 0 0 var(--ink)}
+.qs-list button.cur .qs-t{color:var(--ink);font-weight:700}
+.qside.shut .qs-sum,.qside.shut .qs-list{display:none}
+@media (max-width:1100px){
+  .qlay{grid-template-columns:1fr;gap:0}
+  .qlay>#qsidebox,.qlay>#msidebox{order:-1}
+  .qside{position:static;max-height:none;margin-top:10px}
+  .qs-list{display:flex;flex-wrap:wrap;gap:4px;max-height:132px;padding:6px}
+  .qs-list li{margin:0}
+  .qs-list button{width:auto;min-width:44px;min-height:40px;justify-content:center;padding:0 6px;gap:3px}
+  .qs-t{display:none}
+  .qs-no{min-width:0;text-align:center;font-size:13px}
+  .qs-mk{width:auto;font-size:11px}
+  .qs-list button.n .qs-mk{display:none}
+  .qs-list button.cur{box-shadow:none}
+}
+@media print{.qside{display:none!important}}
