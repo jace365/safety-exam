@@ -760,9 +760,16 @@
     }).join('\n');
   }
   function hasBlanks(q) { return /\{\{[^}]+\}\}/.test(q.a); }
-  /* 회차 목록: 기본 1~5회 + 내가 입력한 문제로 생긴 6회 이후 */
+  /* 회차 목록: 기본 회차(필답형 1~11회·작업형 1~5회, data/mock-regroup.js) + 내가 입력한 문제로 생긴 그 뒤 회차 */
+  function baseRounds(src) { return (QDATA.mockBase && QDATA.mockBase[src]) || 5; }
   function roundsOf(src) {
-    return Object.keys(QDATA[src]).map(Number).filter(function (n) { return n <= 5 || (QDATA[src][n] || []).length; }).sort(function (a, b) { return a - b; });
+    return Object.keys(QDATA[src]).map(Number).filter(function (n) { return n <= baseRounds(src) || (QDATA[src][n] || []).length; }).sort(function (a, b) { return a - b; });
+  }
+  /* 내 입력 문제의 회차: 필답형 재편성(5회→11회, 2026.10.14) 전에 저장한 기록(rv 없음)의 6회 이후는 뒤로 밀어 기본 회차와 겹치지 않게 한다 */
+  function userRound(m) {
+    var n = parseInt(m.round, 10) || 1;
+    if (m.type !== 'practical' && m.rv !== 2 && n > 5) n += baseRounds('mock') - 5;
+    return n;
   }
   function mockAll() {
     var a = [];
@@ -774,11 +781,11 @@
     ['mock', 'mockP'].forEach(function (src) {
       Object.keys(QDATA[src]).forEach(function (n) {
         QDATA[src][n] = QDATA[src][n].filter(function (q) { return !q.umock; });
-        if (+n > 5 && !QDATA[src][n].length) delete QDATA[src][n];
+        if (+n > baseRounds(src) && !QDATA[src][n].length) delete QDATA[src][n];
       });
     });
     (store.mockq || []).forEach(function (m) {
-      var src = m.type === 'practical' ? 'mockP' : 'mock', n = parseInt(m.round, 10) || 1;
+      var src = m.type === 'practical' ? 'mockP' : 'mock', n = userRound(m);
       (QDATA[src][n] = QDATA[src][n] || []).push({ id: m.id, type: m.type === 'practical' ? 'practical' : 'written', mock: n,
         subject: m.subject || '사용자추가', q: m.q, a: m.a, unordered: !!m.unordered, user: true, umock: true });
     });
@@ -1131,7 +1138,7 @@
     if (!S.graded) S.graded = {};
     S.ids = S.ids.filter(function (id) { return list.some(function (q) { return q.id === id; }); });
     root.innerHTML =
-      head('모의고사', '실제 시험처럼 <b>한 문제씩 빈칸을 채워 푸는 퀴즈 형식</b>입니다. 채점하면 맞음/틀림이 자동으로 표시되고, 마지막 문제를 끝내면 점수가 학습기록' + (Cloud.state === 'on' ? '(DB)' : '') + '에 저장됩니다.',
+      head('모의고사', '실제 시험처럼 <b>한 문제씩 빈칸을 채워 푸는 퀴즈 형식</b>입니다. 채점하면 맞음/틀림이 자동으로 표시되고, 마지막 문제를 끝내면 맞음·틀림 개수가 학습기록' + (Cloud.state === 'on' ? '(DB)' : '') + '에 저장됩니다.',
         '<span class="tag">' + mt.label + ' ' + n + '회 · ' + list.length + '문항</span>') +
       '<div class="seg seg-type" id="tseg"><button data-t="written" class="' + (type === 'written' ? 'on' : '') + '">필답형 모의고사</button><button data-t="practical" class="' + (type === 'practical' ? 'on' : '') + '">작업형 모의고사</button></div>' +
       '<div class="seg seg-r" id="seg">' + rounds.map(function (k) {
@@ -1158,7 +1165,7 @@
       $('mq').innerHTML = '<div class="qcard mstart"><div class="qh"><span class="no">' + mt.label + ' 모의고사 ' + n + '회</span><span>' + list.length + '문항 · 빈칸 채우기</span></div><div class="qb">' +
         (list.length ? '<table class="tbl kv"><tbody>' +
           '<tr><th>문항 수</th><td>' + list.length + '문항 (' + (type === 'written' ? '필답형: 정답의 핵심어·수치' : '작업형: 위험요인·안전조치의 핵심 용어') + '를 빈칸에 입력)</td></tr>' +
-          '<tr><th>지난 기록</th><td>맞음 <b>' + s.o + '</b> · 틀림 <b>' + s.x + '</b> · 미채점 <b>' + un + '</b>' + (s.o + s.x ? ' · 정답률 <b>' + Math.round(s.o / s.t * 100) + '%</b>' : '') + '</td></tr>' +
+          '<tr><th>지난 기록</th><td>맞음 <b>' + s.o + '</b> · 틀림 <b>' + s.x + '</b> · 미채점 <b>' + un + '</b></td></tr>' +
           '<tr><th>채점 방법</th><td>빈칸을 모두 맞혀야 “맞음”. Enter로 다음 빈칸 → 채점 → 다음 문제</td></tr></tbody></table>' +
           '<div class="qact"><button class="pri" id="qsNew">▶ 처음부터 풀기</button>' +
           (partial ? '<button id="qsCont">이어 풀기 (' + (s.o + s.x) + '/' + s.t + ')</button>' : '') +
@@ -1293,10 +1300,9 @@
     function drawDone() {
       $('mq').classList.remove('has-side');
       $('mtime').textContent = S.ms ? '소요 ' + fmtT(S.ms) : '';
-      var st = sessStat(), un = st.t - st.o - st.x, pct = st.t ? Math.round(st.o / st.t * 100) : 0;
+      var st = sessStat(), un = st.t - st.o - st.x;
       var wrong = S.ids.filter(function (id) { return res(id) !== 'o'; }).map(findQ).filter(Boolean);
       $('mq').innerHTML = '<div class="qcard mresult"><div class="qh"><span class="no">' + mt.label + ' ' + n + '회 결과' + (S.retry ? ' (틀린 문제 다시)' : '') + '</span><span>' + (S.recorded ? (Cloud.state === 'on' ? '☁ 학습기록(DB)에 저장됨' : '💾 학습기록에 저장됨') : '채점한 문제 없음') + '</span></div><div class="qb">' +
-        '<div class="score ' + (pct >= 60 ? 'pass' : 'fail') + '"><b>' + st.o + '</b> / ' + st.t + '<span>' + pct + '%</span><em>' + (pct >= 60 ? '합격선(60%) 이상' : '합격선(60%) 미만') + '</em></div>' +
         '<div class="stat">맞음 <b>' + st.o + '</b> · 틀림 <b>' + st.x + '</b> · 미채점 <b>' + un + '</b>' + (S.ms ? ' · 소요 <b>' + fmtT(S.ms) + '</b>' : '') + '</div>' +
         '<div class="qact">' + (wrong.length ? '<button class="pri" id="rdNote">📝 틀린·미채점 ' + wrong.length + '문제 오답노트에 담기</button><button id="rdRetry">🔁 틀린 문제만 다시</button>' : '') +
         '<button id="rdAgain">↺ 처음부터 다시</button><button id="rdTable">📋 표로 보기</button></div>' +
@@ -1363,7 +1369,7 @@
     }
     function drawSum() {
       var s = mockStat(type, n), un = s.t - s.o - s.x;
-      document.getElementById('msum').innerHTML = mt.label + ' ' + n + '회 — 맞음 <b>' + s.o + '</b> · 틀림 <b>' + s.x + '</b> · 미채점 <b>' + un + '</b> · 정답률 <b>' + (s.t ? Math.round(s.o / s.t * 100) : 0) + '%</b>';
+      document.getElementById('msum').innerHTML = mt.label + ' ' + n + '회 — 맞음 <b>' + s.o + '</b> · 틀림 <b>' + s.x + '</b> · 미채점 <b>' + un + '</b>';
     }
     function drawTime() {
       var el = document.getElementById('mtime'); if (!el) return;
@@ -1511,7 +1517,7 @@
   /* ───────── 모의고사 문제 입력(퀴즈 형식) ─────────
      store.mockq = [{ id, type, round, subject, q, a, unordered, createdAt, updatedAt }]
      정답의 {{핵심어}}가 빈칸이 되고, {{정답|다른표현}}으로 인정 답안을 여러 개 둔다. */
-  function nextRound(type) { var rs = mockRounds(type); return (rs.length ? rs[rs.length - 1] : 5) + 1; }
+  function nextRound(type) { var rs = mockRounds(type); return (rs.length ? rs[rs.length - 1] : baseRounds(MTYPE[type].src)) + 1; }
   function deleteMockQ(id) {
     var m = store.mockq.filter(function (x) { return x.id === id; })[0]; if (!m) return;
     if (!confirm('내가 입력한 이 문제를 삭제할까요?\n' + m.q.slice(0, 60))) return;
@@ -1579,7 +1585,7 @@
         '<option value="' + nx + '"' + (sel === nx ? ' selected' : '') + '>＋ 새 회차 ' + nx + '회</option>';
     }
     $('me-t').value = type;
-    fillRounds(m ? m.round : (ui.lastRound && ui.lastRound[type]) || ui.n);
+    fillRounds(m ? userRound(m) : (ui.lastRound && ui.lastRound[type]) || ui.n);
     if (m) { $('me-s').value = m.subject; $('me-q').value = m.q; $('me-a').value = m.a; $('me-u').checked = !!m.unordered; }
     else if (ui.lastSubj) $('me-s').value = ui.lastSubj;
     var prevBlanks = [];
@@ -1629,7 +1635,7 @@
       if ((a.match(/\{\{/g) || []).length !== (a.match(/\}\}/g) || []).length) { toast('빈칸 괄호 {{ }} 짝이 맞지 않습니다.'); return null; }
       if (!/\{\{[^}]+\}\}/.test(a) && !confirm('정답에 빈칸 {{ }}이 없습니다. 퀴즈 채점 없이 “정답 보기”형으로 저장할까요?')) return null;
       return { id: m ? m.id : 'UM' + (t === 'practical' ? 'P' : 'W') + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-        type: t, round: rnd, subject: $('me-s').value.trim() || '사용자추가', q: q, a: a, unordered: $('me-u').checked,
+        type: t, round: rnd, rv: 2, subject: $('me-s').value.trim() || '사용자추가', q: q, a: a, unordered: $('me-u').checked,
         createdAt: m ? m.createdAt : Date.now(), updatedAt: Date.now() };
     }
     function doSave(keep) {
@@ -1652,7 +1658,7 @@
       if (!recs.length) { $('me-bst').textContent = '형식을 확인하세요. 문제: / 정답: 줄이 필요합니다.'; return; }
       recs.forEach(function (r, k) {
         var rec = { id: 'UM' + (t === 'practical' ? 'P' : 'W') + Date.now().toString(36) + k + Math.random().toString(36).slice(2, 4),
-          type: t, round: rnd, subject: r.s || $('me-s').value.trim() || '사용자추가', q: r.q, a: r.a, unordered: r.u, createdAt: Date.now(), updatedAt: Date.now() };
+          type: t, round: rnd, rv: 2, subject: r.s || $('me-s').value.trim() || '사용자추가', q: r.q, a: r.a, unordered: r.u, createdAt: Date.now(), updatedAt: Date.now() };
         if (addMockQ(rec)) skip++; else ok++;
       });
       if (ok) { save('mq'); rebuildUserMocks(); logEv({ k: 'add', t: t, n: rnd, cnt: ok }); }
