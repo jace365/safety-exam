@@ -1,0 +1,98 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>산업안전기사 작업형 암기 음성</title><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+:root{--bg:#f6f7fb;--c:#fff;--t:#1b2233;--m:#667085;--a:#1d5fd6;--b:#dde3f0;--h:#fff3c4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141f;--c:#1a2132;--t:#e8ecf5;--m:#9aa5bd;--a:#6aa0ff;--b:#2c3550;--h:#4a4120;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10141f;--c:#1a2132;--t:#e8ecf5;--m:#9aa5bd;--a:#6aa0ff;--b:#2c3550;--h:#4a4120;color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--t);font:16px/1.6 system-ui,-apple-system,"Malgun Gothic",sans-serif}
+main{max-width:640px;margin:0 auto;padding:12px}
+select,button{font:inherit;color:var(--t);background:var(--c);border:1px solid var(--b);border-radius:10px;padding:8px 12px}
+button{cursor:pointer}button.p{background:var(--a);color:#fff;border-color:var(--a)}
+.r{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
+#sel{flex:1;min-width:0}
+.card{background:var(--c);border:1px solid var(--b);border-radius:14px;padding:16px;margin:10px 0}
+.n{color:var(--m);font-size:13px}h1{font-size:20px;margin:4px 0 10px}
+ol{padding-left:0;margin:0;list-style:none}
+li{display:flex;gap:8px;padding:8px;border-radius:8px;cursor:pointer}
+li b{color:var(--a);min-width:22px}li.on{background:var(--h)}li.x span{filter:blur(7px)}
+.bar{height:4px;background:var(--b);border-radius:4px}.bar i{display:block;height:4px;background:var(--a);border-radius:4px}
+label{font-size:14px;color:var(--m)}
+body{padding-bottom:96px;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:contain}
+select,button{min-height:44px}h1{font-size:22px}li{padding:12px 8px;font-size:18px}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;gap:8px;background:var(--c);border-top:1px solid var(--b);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+.dock button{flex:1;min-height:54px;font-size:17px}.dock .p{flex:1.7}
+</style></head><body><main>
+<div class="r"><select id="sel" aria-label="페이지 선택"></select></div>
+<div class="bar"><i id="bar"></i></div>
+<div class="card"><div class="n" id="no"></div><h1 id="ti"></h1><ol id="ol"></ol></div>
+<div class="dock"><button id="pv">◀ 이전</button><button class="p" id="pl">🔊 듣기</button><button id="nx">다음 ▶</button></div>
+<div class="r">
+<label>반복 <select id="rp"><option>1</option><option>2</option><option>3</option><option>5</option></select>회</label>
+<label>속도 <select id="rt"><option value=".8">느리게</option><option value="1" selected>보통</option><option value="1.2">빠르게</option></select></label>
+<label><input type="checkbox" id="au"> 자동 다음</label>
+<label><input type="checkbox" id="hd"> 가리기(탭하면 보임)</label></div>
+<p class="n">화면을 좌우로 밀어 페이지를 넘기고, 항목을 탭하면 그 항목부터 읽습니다. 재생 중에는 화면이 꺼지지 않습니다. 가리기를 켜고 소리만 듣고 떠올려 보세요.</p>
+</main>
+<script>
+var D=`지게차 작업계획서 포함사항|운행경로 및 작업방법;화물의 상태(중량·시야 방해);운행경로의 상태(장애물);지게차 작동 상태 점검 결과
+지게차 안정도 기준|하역작업 전후 4% 이내(5톤 이상 3.5%);하역작업 좌우 6% 이내;주행 전후 18% 이내;주행 좌우 (15+1.1V)% 이내
+지게차 방호장치·헤드가드|방호장치: 헤드가드, 백레스트, 전조등, 후미등, 안전벨트;헤드가드 강도: 최대하중 2배 등분포정하중(4톤 초과 시 4톤);상부틀 개구 폭 16cm 미만;좌식 0.903m 이상, 입식 1.88m 이상
+지게차 작업 전 점검 4가지|제동장치·조종장치 이상 유무;하역장치·유압장치 이상 유무;바퀴 이상 유무;전조등·후미등·방향지시기·경보장치 이상 유무
+구내운반차 사업주 준수사항|제동장치·경음기 구비;헤드가드·전조등·후미등·방향지시기·후진경보기;작업계획서 작성;유자격 운전자 배치;승차석 외 탑승 금지;제한속도 지정
+프레스 작업 시작 전 점검|클러치 및 브레이크 기능;크랭크축·플라이휠·슬라이드·연결봉·연결나사 풀림;1행정 1정지기구·급정지장치·비상정지장치 기능;슬라이드·칼날 위험방지기구 기능;금형 및 고정볼트 상태;방호장치 기능
+프레스 방호장치|급정지기구 필요: 양수조작식, 감응식;급정지기구 불필요: 양수기동식, 게이트가드식, 손쳐내기식, 수인식;양수조작식 내측거리 300mm 이상;이름판: 압력능력, 제조번호, 제조자명, 제조연월, 안전인증 표시;안전블록: 금형 작업 중 슬라이드 낙하 방지
+롤러기 급정지장치|손 조작식: 바닥에서 1.8m 이내;복부 조작식: 0.8m 이상 1.1m 이내;무릎 조작식: 0.4m 이상 0.6m 이내
+기계 6대 위험점|협착점: 왕복운동부와 고정부;끼임점: 회전·왕복운동부와 고정부;절단점: 날카로운 운동부;물림점: 서로 반대로 회전하는 두 회전체;접선물림점: 회전체와 접선부(벨트 풀리);회전말림점: 돌출 회전체에 작업복·머리카락 말림
+사출성형기|위험점: 끼임;방호장치: 게이트가드식, 양수조작식;감전 위험요인: 전원 미차단, 보호구 미착용, 감시인 미배치, 전용공구 미사용;감전 대책: 전원차단·잠금장치(LOTO), 외함 접지·누전차단기, 절연장갑·절연공구
+선반·밀링·그라인더·컨베이어|선반: 방진구(work rest), 칩브레이크, 덮개;선반 샌드페이퍼 작업: 회전말림점;컨베이어·선반축·그라인더 방호장치: 덮개;밀링머신: 수직·수평 밀링머신;자율안전확인 표시: 제조자명·주소, 모델번호, 제조번호·연도, 기계 중량, 전기·유공압 정보, 스핀들 회전수 범위
+컨베이어 작업 시작 전 점검|원동기 및 풀리 기능;이탈 등 방지장치 기능;비상정지장치 기능;원동기·회전축·기어·풀리 덮개 또는 울;재해원인: 잠금장치·꼬리표 미부착;대책: 잠금장치와 꼬리표 부착, 검사 시 기계 운전 정지
+휴대용 연삭기·탁상용 연삭기|휴대용 연삭기 덮개 노출각도 180도 이내;숫돌 교체 시 작업 시작 전 1분 이상 시운전;교체 후 3분 이상 시운전;탁상용 연삭기: 끼임, 가해물 브레이크 패드
+둥근톱|고정식 접촉예방장치: 가공재 상면과 덮개 하단 8mm 이내;덮개 하단과 테이블면 25mm 이내;방호장치: 반발예방장치, 톱날접촉예방장치;추가 표시: 덮개의 종류, 둥근톱 사용가능 치수;분할날: 톱날 뒷면 12mm 이내, 두께 톱날의 1.1배 이상
+산업용 로봇|점검: 외부 전선 피복·외장 손상, 매니퓰레이터 작동 이상, 제동장치·비상정지장치 기능;1.8m 이상 울타리 불가 구간: 안전매트, 광전자식 방호장치;안전매트 추가 표시: 작동하중, 감응시간, 복귀신호 자동·수동, 대소인공용 여부
+교류아크용접기|방호장치: 자동전격방지기;무부하 시 2차측 전압 25V 이하로 강하;종류: 외장형, 내장형, 저저항시동형(L형), 고저항시동형(H형);용접홀더 구비조건: 절연내력, 내열성;설치장소: 선박 이중선체 내부, 높이 2m 이상 추락위험 도전성 물체 접촉장소, 도전성 높은 습윤 장소
+감전 위험도·누전차단기|위험도 결정요인 크시경종: 통전전류 크기, 통전시간, 통전경로, 전원의 종류;누전차단기 설치: 대지전압 150V 초과 이동형·휴대형;물 등 도전성 액체 습윤 장소;철판·철골 위 도전성 높은 장소;임시배선 전로 장소;정격감도전류 30mA 이하, 작동시간 0.03초 이내
+활선작업·충전로|활선작업 보호구: 내전압용 절연장갑, 절연장화, AE종·ABE종 안전모;활선 확인: 검전기, 접지봉 접촉, 테스터 지시치;충전로 작업 조치: 절연용 보호구 착용, 절연용 방호구 설치, 활선작업용 기구 사용;전로 차단 예외: 생명유지장치·비상경보설비 중단 위험, 설계상 차단 불가, 감전·화재·폭발 위험 없음 확인;정전 후 감전 원인: 잔류전하
+가스용접·가스집합용접장치|폭발 방지 방호장치: 안전기(역화방지기);배관 접합부: 플랜지·밸브·콕에 개스킷 사용;주관 및 분기관에 안전기 설치;하나의 취관에 안전기 2개 이상
+밀폐공간 적정공기|산소 18% 이상 23.5% 미만;이산화탄소 1.5% 미만;일산화탄소 30ppm 미만;황화수소 10ppm 미만
+밀폐공간 작업|작업 프로그램 5가지: 위치 파악·관리방안, 유해위험요인 파악·관리, 사전 확인 절차(출입 허가제), 안전보건교육 및 훈련, 그 밖의 건강장해 예방;비상시 피난용구: 도르래, 로프, 구명밧줄, 안전대, 피재자 구조용 발판, 호흡용 보호구;슬러지 작업 호흡용 보호구: 송기마스크, 공기호흡기;산소결핍 대피용 기구: 공기호흡기, 송기마스크, 사다리
+방독마스크|흡수제 3가지: 활성탄, 소다라임, 호프카라이트;정화통 추가 표시 4가지: 파과곡선도, 사용시간 기록카드, 정화통 외부 측면 표시색, 사용상 주의사항;시험성능: 안면부 흡기저항, 배기저항, 누설률, 내부 이산화탄소 농도;도료·시너 취급: 유기화합물용 방독마스크
+유해물질 취급·게시사항|관리대상 유해물질 게시 5가지: 명칭, 인체에 미치는 영향, 취급상 주의사항, 착용 보호구, 응급조치와 긴급 방재요령;DMF 용기 경고표지: 인화성물질경고, 급성독성물질경고, 발암성물질경고;브레이크 라이닝 세척 보호구: 불침투성 보호의, 보호장갑, 보호장화, 방독마스크, 보안경;유해물질 바닥: 경사 또는 둘레에 높이 15cm 이상 턱, 불침투 재료
+특수화학설비·화학설비|필수 3가지: 계측장치(온도계·유량계·압력계), 자동경보장치, 긴급차단장치;급격한 압력 상승 우려: 압력방출용 파열판, 안전밸브;가스누설감지경보기: LPG는 바닥 가까이, 경보설정값 폭발하한계 25% 이하;인화성 물질 폭발: 증기운 폭발(UVCE);방유제: 저장탱크 위험물 확산 방지
+공기압축기 작업 전 점검 7가지|공기저장 압력용기 외관 상태;드레인밸브 조작 및 배수;압력방출장치 기능;언로드밸브 기능;윤활유 상태;회전부 덮개 또는 울;그 밖의 연결 부위 이상 유무
+국소배기장치 덕트·후드|덕트 길이는 짧게, 굴곡부는 적게;접속부 안쪽은 돌출부 없게;청소구 설치;오염물질 쌓이지 않도록 이송속도 유지;연결부로 외부 공기 유입 방지;외부식·리시버식 후드는 발산원에 가장 가까운 위치
+비계 작업발판(높이 2m 이상)|작업발판 폭 40cm 이상;발판재료 간 틈 3cm 이하;안전난간 설치;견고한 재료, 이탈 방지 고정;강관비계 간격: 띠장 1.8m, 장선 1.5m
+안전난간|상부난간대 90cm 이상 120cm 이하;중간난간대 설치;발끝막이판 높이 10cm 이상;난간대 지름 2.7cm 이상;100kg 하중을 견딜 것
+말비계·이동식 비계|말비계 지주부재 기울기 75도 이하;보조부재 설치;높이 2m 초과 시 작업발판 폭 40cm 이상;이동식 비계: 브레이크·쐐기로 바퀴 고정 후 아웃트리거 설치;승강용 사다리 견고, 안전난간 설치;작업발판 수평 유지;최대적재하중 250kg 초과 금지
+계단·사다리·가설통로|계단 강도 500kg/㎡ 이상, 안전율 4 이상;계단 폭 1m 이상;높이 3m 초과 시 3m 이내마다 너비 1.2m 이상 계단참;고정식 사다리 폭 30cm 이상, 벽과 15cm 이상, 상단 60cm 이상 돌출, 기울기 75도 이하;10m 이상이면 5m마다 계단참;가설통로 경사 30도 이하, 15도 초과 시 미끄럼 방지;수직갱 15m 이상이면 10m 이내마다 계단참
+추락방호망·낙하물방지망|추락방호망: 작업면에서 10m 이내, 내민길이 2m 이상(벽면에서), 처짐 짧은 변 길이의 12% 이상, 겹침 30cm;낙하물방지망: 높이 10m 이내, 내민 수평거리 2m 이상, 수평면과 20도 이상 30도 이하, 겹침 15cm 이상, 그물코 2cm 이하
+철골작업 중지 기준|풍속 초당 10m 이상;강우량 시간당 1mm 이상;강설량 시간당 1cm 이상;철골 기둥 승강로 답단 간격 30cm 이내
+크레인·곤돌라·달기구|이동식 크레인 점검: 권과방지장치·경보장치, 브레이크·클러치·조정장치, 와이어로프 통과 부위 및 지반 상태;천장크레인 안전검사: 설치 후 3년, 이후 매 2년;훅해지장치: 훅에서 와이어로프 이탈 방지;곤돌라 탑승: 운반구 전도·추락 방지 조치, 안전대·구명줄 설치;달비계 달기체인 사용금지: 길이 5% 초과 늘어남, 링 지름 10% 초과 감소, 균열·심한 변형
+항타기·항발기|조립·해체 시 점검: 본체 부속품의 하자, 와이어로프 상태, 권상용 드럼 장착 상태, 브레이크 기능(역전방지), 리더의 버팀 방법 및 고정상태;전도 방지: 아웃트리거, 각부 견고히 고정, 버팀줄 3개 이상
+건설용 리프트·안전대|리프트 방호장치: 과부하방지장치, 완충스프링, 리미트스위치, 방호울 출입문 연동장치, 3상 전원차단장치;안전대 충격흡수장치 벨트: 너비 50mm 이상, 두께 2mm 이상, 정하중 15kN 이상;안전모: AB 낙하·추락, AE 낙하·감전, ABE 종합형
+거푸집·터널·굴착|시스템동바리 벽연결재 간격: 제조사가 정한 기준;파이프서포트 3.5m 초과 시 수평연결재 설치;터널 부석 정리(Scaling), 숏크리트, 락볼트;터널 계측: 천단침하, 내공변위, 지중변위, 록볼트 축력;콘크리트 5MPa: 거푸집 제거 가능한 초기 강도;흙막이 지보공 정기점검: 부재 손상·변형·부식·변위·탈락, 버팀대 긴압 정도, 접속부·부착부·교차부, 침하 정도
+근골격계·안전보건교육|유해요인조사 3가지: 작업장 상황, 작업조건, 근골격계질환 증상 유무;안전보건관리책임자: 신규 6시간, 보수 2년마다 6시간;관리감독자: 연 16시간;근로자: 매반기 12시간(사무직 6시간);건설 기초안전보건교육 4시간;채용 시: 일용 1시간, 기간제 4시간, 상용 8시간
+피뢰기·보일러·재해형태|피뢰기: 상용주파 방전개시전압 높게, 충격 방전개시전압 낮게, 제한전압 낮게, 속류차단능력 크게;보일러 안전밸브: 최고사용압력 이하, 2개 이상이면 1개는 1.05배 이하;비래: 물건이 주체가 되어 사람이 맞는 경우;용광로: 이상온도 노출·접촉, 보호구 방열장갑·내열 안전화·방열 일체복`.trim().split("\n").map(function(l){var p=l.split("|");return{t:p[0],i:p[1].split(";")}});
+var $=function(i){return document.getElementById(i)},ix=0,tok=0,seg=0,rep=0,S=window.speechSynthesis;
+try{ix=Math.min(+localStorage.getItem("sv")||0,D.length-1)}catch(e){}
+D.forEach(function(d,k){var o=document.createElement("option");o.value=k;o.textContent=(k+1)+". "+d.t;$("sel").appendChild(o)});
+function show(){var d=D[ix];$("sel").value=ix;$("no").textContent=(ix+1)+" / "+D.length;$("ti").textContent=d.t;$("bar").style.width=((ix+1)/D.length*100)+"%";
+var ol=$("ol");ol.innerHTML="";d.i.forEach(function(s,k){var li=document.createElement("li");li.id="i"+k;li.innerHTML="<b>"+(k+1)+"</b><span></span>";li.lastChild.textContent=s;if($("hd").checked)li.className="x";
+li.onclick=function(){li.classList.remove("x");if(S&&S.speaking)play(k)};ol.appendChild(li)});
+try{localStorage.setItem("sv",ix)}catch(e){}}
+function stop(){tok++;if(S)S.cancel();try{if(wl){wl.release();wl=null}}catch(e){}$("pl").textContent="🔊 듣기";hl(-1)}
+function hl(k){document.querySelectorAll("li").forEach(function(l,j){l.classList.toggle("on",j==k)})}
+function say(t,cb){var u=new SpeechSynthesisUtterance(t),m=tok;u.lang="ko-KR";u.rate=+$("rt").value;u.onend=function(){if(m==tok)cb()};u.onerror=function(){};S.speak(u)}
+function step(){var d=D[ix];if(seg>=d.i.length){rep++;if(rep<+$("rp").value){seg=0;return step()}
+if($("au").checked&&ix<D.length-1){ix++;show();return play(-1)}return stop()}
+var li=$("i"+seg);if(li)li.classList.remove("x");hl(seg);var t=d.i[seg];seg++;say((seg)+"번. "+t,step)}
+function play(k){if(!S){alert("이 브라우저는 음성 읽기를 지원하지 않습니다.");return}
+stop();tok++;rep=0;$("pl").textContent="⏹ 멈춤";try{navigator.wakeLock.request("screen").then(function(w){wl=w}).catch(function(){})}catch(e){}var d=D[ix];
+if(k<0){seg=0;say(d.t,step)}else{seg=k;step()}}
+function go(n){stop();ix=(n+D.length)%D.length;show()}
+$("pl").onclick=function(){S&&(S.speaking||$("pl").textContent[0]=="⏹")?stop():play(-1)};
+$("pv").onclick=function(){go(ix-1)};$("nx").onclick=function(){go(ix+1)};
+$("sel").onchange=function(){go(+this.value)};$("hd").onchange=function(){stop();show()};
+var wl=null,sx=0,sy=0;
+document.addEventListener("touchstart",function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY},{passive:true});
+document.addEventListener("touchend",function(e){var dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*2)go(ix+(dx<0?1:-1))},{passive:true});
+show();
+</script></body></html>
